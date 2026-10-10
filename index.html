@@ -22,6 +22,7 @@
   .btn-out:disabled { background:#d8b0aa; cursor:not-allowed; }
   .btn-small { padding:10px; font-size:14px; border-radius:10px; background:#2c3e50; color:#fff; margin-bottom:8px; }
   .btn-gray { background:#7f8c8d; }
+  .btn-blue { background:#2980b9; }
   .money-input, .cfg-input { width:100%; padding:14px; font-size:16px; border:2px solid #ddd; border-radius:12px; margin-bottom:10px; }
   .money-input { border-color:#e74c3c; font-size:20px; text-align:center; }
   .stats { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
@@ -39,10 +40,16 @@
   .empty { text-align:center; color:#aaa; padding:20px; font-size:14px; }
   .footer { text-align:center; color:#bbb; font-size:12px; margin-top:16px; }
   .cfg-toggle { text-align:center; color:#3498db; font-size:14px; cursor:pointer; padding:6px; }
-  .sync-msg { font-size:12px; text-align:center; margin-top:6px; color:#888; }
+  .sync-msg { font-size:12px; text-align:center; margin-top:8px; color:#888; min-height:18px; }
+  .sync-msg.ok { color:#27ae60; font-weight:600; }
+  .sync-msg.err { color:#e74c3c; }
+  .sync-msg.syncing { color:#2980b9; }
   .export-row { display:flex; gap:10px; }
   .export-row .btn { margin-bottom:0; }
+  .sync-row { display:flex; gap:10px; margin-top:10px; }
+  .sync-row .btn { margin-bottom:0; padding:12px; font-size:14px; }
   details summary { cursor:pointer; }
+  .last-sync { text-align:center; font-size:11px; color:#bbb; margin-top:4px; }
 </style>
 </head>
 <body>
@@ -56,6 +63,11 @@
   <input id="moneyInput" class="money-input" type="number" inputmode="decimal" min="0" step="0.1" placeholder="收工請輸入今日賺咗幾多錢（HK$）">
   <button id="btnOut" class="btn btn-out" onclick="clockOut()" disabled>🏁 收工打卡</button>
   <div id="syncMsg" class="sync-msg"></div>
+  <div class="sync-row">
+    <button class="btn btn-small btn-blue" onclick="forceSync()">☁️ 立即同步</button>
+    <button class="btn btn-small btn-gray" onclick="syncFromCloud()">📥 從雲端下載</button>
+  </div>
+  <div id="lastSync" class="last-sync"></div>
 </div>
 
 <div class="card">
@@ -109,6 +121,7 @@ let openRec = JSON.parse(localStorage.getItem(KEY + '_open') || 'null');
 let cfg = JSON.parse(localStorage.getItem(CFG) || 'null');
 let view = 'day';
 let cloudSha = null;
+let syncing = false;
 
 function saveLocal() {
   localStorage.setItem(KEY, JSON.stringify(records));
@@ -124,17 +137,28 @@ function fmtTime(ts) {
 }
 function fmtDur(ms) { return (ms / 3600000).toFixed(1) + 'h'; }
 function uid() { return Date.now() + '-' + Math.random().toString(36).slice(2,8); }
-function msg(t) { document.getElementById('syncMsg').textContent = t; }
+
+function msg(text, type) {
+  const el = document.getElementById('syncMsg');
+  el.textContent = text;
+  el.className = 'sync-msg' + (type ? ' ' + type : '');
+}
+function setLastSync() {
+  const el = document.getElementById('lastSync');
+  el.textContent = '最後同步：' + fmtTime(Date.now());
+}
 
 /* ---------- GitHub 雲端同步 ---------- */
 function ghHeaders() {
-  return { 'Authorization': 'Bearer ' + cfg.token, 'Accept': 'application/vnd.github+json' };
+  return { 'Authorization': 'token ' + cfg.token, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' };
 }
+
 async function cloudLoad() {
   if (!cfg) return;
   try {
+    msg('📥 正在從雲端下載…', 'syncing');
     const r = await fetch('https://api.github.com/repos/' + cfg.user + '/' + cfg.repo + '/contents/data.json', { headers: ghHeaders() });
-    if (r.status === 404) { cloudSha = null; return; } // 未建過檔案
+    if (r.status === 404) { cloudSha = null; msg('☁️ 雲端未有資料，將會新建'); return; }
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const j = await r.json();
     cloudSha = j.sha;
@@ -150,33 +174,69 @@ async function cloudLoad() {
       if (!openRec || cloudData.openRec.in > openRec.in) openRec = cloudData.openRec;
     }
     saveLocal(); refresh();
-    msg('☁️ 已從雲端同步 ' + records.length + ' 條記錄');
-  } catch (e) { msg('⚠️ 雲端同步失敗：' + e.message); }
+    msg('✅ 已從雲端同步 ' + records.length + ' 條記錄', 'ok');
+    setLastSync();
+  } catch (e) {
+    msg('⚠️ 下載失敗：' + e.message, 'err');
+  }
 }
+
 async function cloudSave() {
-  if (!cfg) return;
+  if (!cfg) { msg('未設定 GitHub（只用本機模式）'); return false; }
+  if (syncing) return false;
+  syncing = true;
   try {
-    msg('☁️ 同步緊…');
+    msg('☁️ 正在同步上雲端…', 'syncing');
     // 攞最新 sha（可能第二部機改過）
     const r = await fetch('https://api.github.com/repos/' + cfg.user + '/' + cfg.repo + '/contents/data.json', { headers: ghHeaders() });
-    if (r.ok) { const j = await r.json(); cloudSha = j.sha;
+    if (r.ok) {
+      const j = await r.json(); cloudSha = j.sha;
       // 合併對方更新
       const cd = JSON.parse(decodeURIComponent(escape(atob(j.content.replace(/\n/g,'')))));
       const map = {};
       (cd.records || []).forEach(x => map[x.id] = x);
       records.forEach(x => { if (!map[x.id]) map[x.id] = x; });
       records = Object.values(map).sort((a,b) => a.in - b.in);
-    } else cloudSha = null;
-    const body = { message: 'update clock records', content: btoa(unescape(encodeURIComponent(JSON.stringify({ records, openRec })))) };
+    } else {
+      cloudSha = null;
+    }
+    const payload = JSON.stringify({ records, openRec });
+    const body = {
+      message: 'update clock records ' + todayStr() + ' ' + fmtTime(Date.now()),
+      content: btoa(unescape(encodeURIComponent(payload)))
+    };
     if (cloudSha) body.sha = cloudSha;
     const w = await fetch('https://api.github.com/repos/' + cfg.user + '/' + cfg.repo + '/contents/data.json', {
       method: 'PUT', headers: ghHeaders(), body: JSON.stringify(body)
     });
-    if (!w.ok) throw new Error('HTTP ' + w.status);
-    msg('✅ 已同步到 GitHub ☁️');
+    if (!w.ok) {
+      const err = await w.json().catch(() => ({}));
+      throw new Error(err.message || 'HTTP ' + w.status);
+    }
+    const wj = await w.json();
+    cloudSha = wj.content.sha;
+    msg('✅ 已同步到 GitHub ☁️', 'ok');
+    setLastSync();
     saveLocal(); refresh();
-  } catch (e) { msg('⚠️ 同步失敗（已保留喺本機）：' + e.message); }
+    return true;
+  } catch (e) {
+    msg('⚠️ 同步失敗（已保留喺本機）：' + e.message, 'err');
+    return false;
+  } finally {
+    syncing = false;
+  }
 }
+
+async function forceSync() {
+  if (!cfg) { alert('請先喺下面設定 GitHub Token'); return; }
+  await cloudSave();
+}
+
+async function syncFromCloud() {
+  if (!cfg) { alert('請先喺下面設定 GitHub Token'); return; }
+  await cloudLoad();
+}
+
 function saveConfig() {
   const user = document.getElementById('cfgUser').value.trim();
   const repo = document.getElementById('cfgRepo').value.trim();
@@ -184,8 +244,10 @@ function saveConfig() {
   if (!user || !repo || !token) { alert('三項都要填！'); return; }
   cfg = { user, repo, token };
   localStorage.setItem(CFG, JSON.stringify(cfg));
-  msg(''); cloudLoad().then(() => cloudSave());
+  msg('');
+  cloudLoad().then(() => cloudSave());
 }
+
 function clearConfig() {
   cfg = null; cloudSha = null;
   localStorage.removeItem(CFG);
@@ -193,16 +255,27 @@ function clearConfig() {
   document.getElementById('cfgRepo').value = '';
   document.getElementById('cfgToken').value = '';
   msg('已清除雲端設定，只用本機模式');
+  document.getElementById('lastSync').textContent = '';
 }
 
 /* ---------- 打卡 ---------- */
-function clockIn() {
+async function clockIn() {
   if (openRec) { alert('已經開咗工㗎喇！'); return; }
   openRec = { id: uid(), date: todayStr(), in: Date.now(), out: null, money: null };
-  saveLocal(); refresh(); cloudSave();
-  alert('✅ 開工打卡成功！' + fmtTime(openRec.in));
+  saveLocal(); refresh();
+  if (cfg) {
+    const ok = await cloudSave();
+    if (ok) {
+      alert('✅ 開工打卡成功！已同步到雲端\n' + fmtTime(openRec.in));
+    } else {
+      alert('✅ 開工打卡成功！（雲端同步失敗，已保留喺本機）\n' + fmtTime(openRec.in));
+    }
+  } else {
+    alert('✅ 開工打卡成功！' + fmtTime(openRec.in));
+  }
 }
-function clockOut() {
+
+async function clockOut() {
   if (!openRec) { alert('仲未開工喎！'); return; }
   const v = parseFloat(document.getElementById('moneyInput').value);
   if (isNaN(v) || v < 0) { alert('請輸入今日賺咗幾多錢！'); return; }
@@ -211,11 +284,24 @@ function clockOut() {
   records.push(openRec);
   openRec = null;
   document.getElementById('moneyInput').value = '';
-  saveLocal(); refresh(); cloudSave();
-  alert('✅ 收工打卡成功！今日賺咗 HK$' + v);
+  saveLocal(); refresh();
+  if (cfg) {
+    const ok = await cloudSave();
+    if (ok) {
+      alert('✅ 收工打卡成功！已同步到雲端\n今日賺咗 HK$' + v);
+    } else {
+      alert('✅ 收工打卡成功！（雲端同步失敗，已保留喺本機）\n今日賺咗 HK$' + v);
+    }
+  } else {
+    alert('✅ 收工打卡成功！今日賺咗 HK$' + v);
+  }
 }
-function delRec(i) {
-  if (confirm('確定刪除呢條記錄？')) { records.splice(i,1); saveLocal(); refresh(); cloudSave(); }
+
+async function delRec(i) {
+  if (!confirm('確定刪除呢條記錄？')) return;
+  records.splice(i,1);
+  saveLocal(); refresh();
+  if (cfg) await cloudSave();
 }
 
 /* ---------- 匯出 ---------- */
@@ -306,12 +392,27 @@ function refresh() {
   renderRecords();
 }
 
+/* ---------- 背景自動同步 ---------- */
+// 每 60 秒自動同步一次
+setInterval(() => {
+  if (cfg && !syncing && !openRec) cloudSave();
+}, 60000);
+
+// 切換回頁面時同步
+if (document.visibilityState !== undefined) {
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && cfg) {
+      cloudLoad().then(() => { if (!openRec) cloudSave(); });
+    }
+  });
+}
+
 /* ---------- 啟動 ---------- */
 if (cfg) {
   document.getElementById('cfgUser').value = cfg.user;
   document.getElementById('cfgRepo').value = cfg.repo;
   document.getElementById('cfgToken').value = cfg.token;
-  cloudLoad();
+  cloudLoad().then(() => { if (!openRec) cloudSave(); });
 }
 refresh();
 </script>
