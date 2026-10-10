@@ -116,8 +116,10 @@
 <script>
 const KEY = 'keeta_walker_records';
 const CFG = 'keeta_walker_cfg';
+const DELETED_KEY = 'keeta_walker_deleted';
 let records = JSON.parse(localStorage.getItem(KEY) || '[]');
 let openRec = JSON.parse(localStorage.getItem(KEY + '_open') || 'null');
+let deletedIds = JSON.parse(localStorage.getItem(DELETED_KEY) || '[]');
 let cfg = JSON.parse(localStorage.getItem(CFG) || 'null');
 let view = 'day';
 let cloudSha = null;
@@ -126,6 +128,7 @@ let syncing = false;
 function saveLocal() {
   localStorage.setItem(KEY, JSON.stringify(records));
   localStorage.setItem(KEY + '_open', JSON.stringify(openRec));
+  localStorage.setItem(DELETED_KEY, JSON.stringify(deletedIds));
 }
 function todayStr(d) {
   d = d || new Date();
@@ -153,6 +156,19 @@ function ghHeaders() {
   return { 'Authorization': 'token ' + cfg.token, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' };
 }
 
+function mergeRecords(localRecs, cloudRecs) {
+  const map = {};
+  // 本地記錄優先
+  (localRecs || []).forEach(r => { if (!deletedIds.includes(r.id)) map[r.id] = r; });
+  // 雲端記錄：本地冇嘅先加入
+  (cloudRecs || []).forEach(r => {
+    if (deletedIds.includes(r.id)) return;
+    if (!map[r.id]) map[r.id] = r;
+    else if ((r.out||r.in) > (map[r.id].out||map[r.id].in)) map[r.id] = r;
+  });
+  return Object.values(map).sort((a,b) => a.in - b.in);
+}
+
 async function cloudLoad() {
   if (!cfg) return;
   try {
@@ -163,14 +179,12 @@ async function cloudLoad() {
     const j = await r.json();
     cloudSha = j.sha;
     const cloudData = JSON.parse(decodeURIComponent(escape(atob(j.content.replace(/\n/g,'')))));
-    // 合併：以 id 為準，新嘅蓋舊
-    const map = {};
-    (cloudData.records || []).forEach(r => map[r.id] = r);
-    records.forEach(r => {
-      if (!map[r.id] || (r.out||r.in) > (map[r.id].out||map[r.id].in)) map[r.id] = r;
-    });
-    records = Object.values(map).sort((a,b) => a.in - b.in);
-    if (cloudData.openRec) {
+    // 合併 deletedIds
+    (cloudData.deletedIds || []).forEach(id => { if (!deletedIds.includes(id)) deletedIds.push(id); });
+    // 合併 records
+    records = mergeRecords(records, cloudData.records);
+    // 合併 openRec
+    if (cloudData.openRec && !deletedIds.includes(cloudData.openRec.id)) {
       if (!openRec || cloudData.openRec.in > openRec.in) openRec = cloudData.openRec;
     }
     saveLocal(); refresh();
@@ -187,20 +201,18 @@ async function cloudSave() {
   syncing = true;
   try {
     msg('☁️ 正在同步上雲端…', 'syncing');
-    // 攞最新 sha（可能第二部機改過）
     const r = await fetch('https://api.github.com/repos/' + cfg.user + '/' + cfg.repo + '/contents/data.json', { headers: ghHeaders() });
     if (r.ok) {
       const j = await r.json(); cloudSha = j.sha;
-      // 合併對方更新
       const cd = JSON.parse(decodeURIComponent(escape(atob(j.content.replace(/\n/g,'')))));
-      const map = {};
-      (cd.records || []).forEach(x => map[x.id] = x);
-      records.forEach(x => { if (!map[x.id]) map[x.id] = x; });
-      records = Object.values(map).sort((a,b) => a.in - b.in);
+      // 合併對方的 deletedIds
+      (cd.deletedIds || []).forEach(id => { if (!deletedIds.includes(id)) deletedIds.push(id); });
+      // 合併 records（本地為準，加入對方新增嘅）
+      records = mergeRecords(records, cd.records);
     } else {
       cloudSha = null;
     }
-    const payload = JSON.stringify({ records, openRec });
+    const payload = JSON.stringify({ records, openRec, deletedIds });
     const body = {
       message: 'update clock records ' + todayStr() + ' ' + fmtTime(Date.now()),
       content: btoa(unescape(encodeURIComponent(payload)))
@@ -249,8 +261,9 @@ function saveConfig() {
 }
 
 function clearConfig() {
-  cfg = null; cloudSha = null;
+  cfg = null; cloudSha = null; deletedIds = [];
   localStorage.removeItem(CFG);
+  localStorage.removeItem(DELETED_KEY);
   document.getElementById('cfgUser').value = '';
   document.getElementById('cfgRepo').value = '';
   document.getElementById('cfgToken').value = '';
@@ -299,9 +312,17 @@ async function clockOut() {
 
 async function delRec(i) {
   if (!confirm('確定刪除呢條記錄？')) return;
-  records.splice(i,1);
+  const id = records[i].id;
+  records.splice(i, 1);
+  if (!deletedIds.includes(id)) deletedIds.push(id);
   saveLocal(); refresh();
-  if (cfg) await cloudSave();
+  if (cfg) {
+    const ok = await cloudSave();
+    if (ok) msg('🗑 已刪除並同步到雲端', 'ok');
+    else msg('🗑 已刪除（雲端同步失敗）', 'err');
+  } else {
+    msg('🗑 已刪除', 'ok');
+  }
 }
 
 /* ---------- 匯出 ---------- */
@@ -393,12 +414,10 @@ function refresh() {
 }
 
 /* ---------- 背景自動同步 ---------- */
-// 每 60 秒自動同步一次
 setInterval(() => {
   if (cfg && !syncing && !openRec) cloudSave();
 }, 60000);
 
-// 切換回頁面時同步
 if (document.visibilityState !== undefined) {
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && cfg) {
