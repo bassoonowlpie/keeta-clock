@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Keeta步兵打卡器</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:"PingFang HK","Microsoft JhengHei",sans-serif; }
+  body { background:#f4f5f7; min-height:100vh; padding:16px; max-width:520px; margin:0 auto; }
+  h1 { font-size:20px; text-align:center; margin-bottom:4px; color:#222; }
+  .sub { text-align:center; color:#888; font-size:13px; margin-bottom:16px; }
+  .card { background:#fff; border-radius:14px; padding:16px; margin-bottom:14px; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+  .status { text-align:center; padding:14px; border-radius:12px; font-size:16px; font-weight:600; margin-bottom:14px; }
+  .status.off { background:#ffecec; color:#c0392b; }
+  .status.on  { background:#e8f8ef; color:#1e8449; }
+  .status small { display:block; font-weight:400; font-size:13px; margin-top:4px; color:#666; }
+  .btn { display:block; width:100%; padding:22px; font-size:22px; font-weight:700; border:none; border-radius:14px; cursor:pointer; margin-bottom:12px; transition:transform .05s; }
+  .btn:active { transform:scale(.97); }
+  .btn-in  { background:#27ae60; color:#fff; }
+  .btn-in:disabled { background:#b8c4bc; cursor:not-allowed; }
+  .btn-out { background:#e74c3c; color:#fff; }
+  .btn-out:disabled { background:#d8b0aa; cursor:not-allowed; }
+  .btn-small { padding:10px; font-size:14px; border-radius:10px; background:#2c3e50; color:#fff; margin-bottom:8px; }
+  .btn-gray { background:#7f8c8d; }
+  .money-input, .cfg-input { width:100%; padding:14px; font-size:16px; border:2px solid #ddd; border-radius:12px; margin-bottom:10px; }
+  .money-input { border-color:#e74c3c; font-size:20px; text-align:center; }
+  .stats { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .stat { background:#f8f9fa; border-radius:10px; padding:12px; text-align:center; }
+  .stat .v { font-size:20px; font-weight:700; color:#222; }
+  .stat .l { font-size:12px; color:#888; margin-top:2px; }
+  .tabs { display:flex; gap:8px; margin-bottom:12px; }
+  .tab { flex:1; padding:10px; text-align:center; border-radius:10px; background:#eee; cursor:pointer; font-size:14px; font-weight:600; color:#777; border:none; }
+  .tab.active { background:#2c3e50; color:#fff; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { padding:8px 4px; text-align:center; border-bottom:1px solid #eee; }
+  th { color:#888; font-weight:600; font-size:12px; }
+  td.money { color:#1e8449; font-weight:700; }
+  .del { color:#ccc; cursor:pointer; font-size:15px; }
+  .empty { text-align:center; color:#aaa; padding:20px; font-size:14px; }
+  .footer { text-align:center; color:#bbb; font-size:12px; margin-top:16px; }
+  .cfg-toggle { text-align:center; color:#3498db; font-size:14px; cursor:pointer; padding:6px; }
+  .sync-msg { font-size:12px; text-align:center; margin-top:6px; color:#888; }
+  .export-row { display:flex; gap:10px; }
+  .export-row .btn { margin-bottom:0; }
+  details summary { cursor:pointer; }
+</style>
+</head>
+<body>
+
+<h1>🛵 Keeta 步兵打卡器</h1>
+<div class="sub">開工撳綠色掣 ・ 收工撳紅色掣</div>
+
+<div class="card">
+  <div id="statusBox" class="status off">未開工<small></small></div>
+  <button id="btnIn" class="btn btn-in" onclick="clockIn()">📍 開工打卡</button>
+  <input id="moneyInput" class="money-input" type="number" inputmode="decimal" min="0" step="0.1" placeholder="收工請輸入今日賺咗幾多錢（HK$）">
+  <button id="btnOut" class="btn btn-out" onclick="clockOut()" disabled>🏁 收工打卡</button>
+  <div id="syncMsg" class="sync-msg"></div>
+</div>
+
+<div class="card">
+  <div class="stats">
+    <div class="stat"><div class="v" id="stTotal">$0</div><div class="l">💰 累計收入</div></div>
+    <div class="stat"><div class="v" id="stDays">0日</div><div class="l">📅 開工日數</div></div>
+    <div class="stat"><div class="v" id="stAvg">$0</div><div class="l">📊 平均每日</div></div>
+    <div class="stat"><div class="v" id="stHours">0小時</div><div class="l">⏱ 累計時數</div></div>
+    <div class="stat"><div class="v" id="stWeek">$0</div><div class="l">🗓 本星期</div></div>
+    <div class="stat"><div class="v" id="stMonth">$0</div><div class="l">🗓 本月份</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="export-row">
+    <button class="btn btn-small" onclick="exportCSV()">📄 匯出 CSV</button>
+    <button class="btn btn-small btn-gray" onclick="exportJSON()">📄 匯出 JSON</button>
+  </div>
+</div>
+
+<div class="card">
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('day',this)">日</button>
+    <button class="tab" onclick="switchTab('week',this)">星期</button>
+    <button class="tab" onclick="switchTab('month',this)">月份</button>
+  </div>
+  <div id="recordBox"></div>
+</div>
+
+<div class="card">
+  <details>
+    <summary class="cfg-toggle">⚙️ GitHub 雲端同步設定（手機電腦共用資料）</summary>
+    <div style="margin-top:12px">
+      <input id="cfgUser" class="cfg-input" placeholder="GitHub 用戶名">
+      <input id="cfgRepo" class="cfg-input" placeholder="Repository 名稱（例如 keeta-clock）">
+      <input id="cfgToken" class="cfg-input" type="password" placeholder="Personal Access Token">
+      <button class="btn btn-small" onclick="saveConfig()">💾 儲存設定並同步</button>
+      <button class="btn btn-small btn-gray" onclick="clearConfig()">清除雲端設定</button>
+      <div class="sync-msg">Token 只儲存喺你部機，唔會上傳。教學見安裝步驟。</div>
+    </div>
+  </details>
+</div>
+
+<div class="footer">資料本地備份 + GitHub 雲端同步 ☁️</div>
+
+<script>
+const KEY = 'keeta_walker_records';
+const CFG = 'keeta_walker_cfg';
+let records = JSON.parse(localStorage.getItem(KEY) || '[]');
+let openRec = JSON.parse(localStorage.getItem(KEY + '_open') || 'null');
+let cfg = JSON.parse(localStorage.getItem(CFG) || 'null');
+let view = 'day';
+let cloudSha = null;
+
+function saveLocal() {
+  localStorage.setItem(KEY, JSON.stringify(records));
+  localStorage.setItem(KEY + '_open', JSON.stringify(openRec));
+}
+function todayStr(d) {
+  d = d || new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function fmtTime(ts) {
+  const d = new Date(ts);
+  return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+function fmtDur(ms) { return (ms / 3600000).toFixed(1) + 'h'; }
+function uid() { return Date.now() + '-' + Math.random().toString(36).slice(2,8); }
+function msg(t) { document.getElementById('syncMsg').textContent = t; }
+
+/* ---------- GitHub 雲端同步 ---------- */
+function ghHeaders() {
+  return { 'Authorization': 'Bearer ' + cfg.token, 'Accept': 'application/vnd.github+json' };
+}
+async function cloudLoad() {
+  if (!cfg) return;
+  try {
+    const r = await fetch('https://api.github.com/repos/' + cfg.user + '/' + cfg.repo + '/contents/data.json', { headers: ghHeaders() });
+    if (r.status === 404) { cloudSha = null; return; } // 未建過檔案
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const j = await r.json();
+    cloudSha = j.sha;
+    const cloudData = JSON.parse(decodeURIComponent(escape(atob(j.content.replace(/\n/g,'')))));
+    // 合併：以 id 為準，新嘅蓋舊
+    const map = {};
+    (cloudData.records || []).forEach(r => map[r.id] = r);
+    records.forEach(r => {
+      if (!map[r.id] || (r.out||r.in) > (map[r.id].out||map[r.id].in)) map[r.id] = r;
+    });
+    records = Object.values(map).sort((a,b) => a.in - b.in);
+    if (cloudData.openRec) {
+      if (!openRec || cloudData.openRec.in > openRec.in) openRec = cloudData.openRec;
+    }
+    saveLocal(); refresh();
+    msg('☁️ 已從雲端同步 ' + records.length + ' 條記錄');
+  } catch (e) { msg('⚠️ 雲端同步失敗：' + e.message); }
+}
+async function cloudSave() {
+  if (!cfg) return;
+  try {
+    msg('☁️ 同步緊…');
+    // 攞最新 sha（可能第二部機改過）
+    const r = await fetch('https://api.github.com/repos/' + cfg.user + '/' + cfg.repo + '/contents/data.json', { headers: ghHeaders() });
+    if (r.ok) { const j = await r.json(); cloudSha = j.sha;
+      // 合併對方更新
+      const cd = JSON.parse(decodeURIComponent(escape(atob(j.content.replace(/\n/g,'')))));
+      const map = {};
+      (cd.records || []).forEach(x => map[x.id] = x);
+      records.forEach(x => { if (!map[x.id]) map[x.id] = x; });
+      records = Object.values(map).sort((a,b) => a.in - b.in);
+    } else cloudSha = null;
+    const body = { message: 'update clock records', content: btoa(unescape(encodeURIComponent(JSON.stringify({ records, openRec })))) };
+    if (cloudSha) body.sha = cloudSha;
+    const w = await fetch('https://api.github.com/repos/' + cfg.user + '/' + cfg.repo + '/contents/data.json', {
+      method: 'PUT', headers: ghHeaders(), body: JSON.stringify(body)
+    });
+    if (!w.ok) throw new Error('HTTP ' + w.status);
+    msg('✅ 已同步到 GitHub ☁️');
+    saveLocal(); refresh();
+  } catch (e) { msg('⚠️ 同步失敗（已保留喺本機）：' + e.message); }
+}
+function saveConfig() {
+  const user = document.getElementById('cfgUser').value.trim();
+  const repo = document.getElementById('cfgRepo').value.trim();
+  const token = document.getElementById('cfgToken').value.trim();
+  if (!user || !repo || !token) { alert('三項都要填！'); return; }
+  cfg = { user, repo, token };
+  localStorage.setItem(CFG, JSON.stringify(cfg));
+  msg(''); cloudLoad().then(() => cloudSave());
+}
+function clearConfig() {
+  cfg = null; cloudSha = null;
+  localStorage.removeItem(CFG);
+  document.getElementById('cfgUser').value = '';
+  document.getElementById('cfgRepo').value = '';
+  document.getElementById('cfgToken').value = '';
+  msg('已清除雲端設定，只用本機模式');
+}
+
+/* ---------- 打卡 ---------- */
+function clockIn() {
+  if (openRec) { alert('已經開咗工㗎喇！'); return; }
+  openRec = { id: uid(), date: todayStr(), in: Date.now(), out: null, money: null };
+  saveLocal(); refresh(); cloudSave();
+  alert('✅ 開工打卡成功！' + fmtTime(openRec.in));
+}
+function clockOut() {
+  if (!openRec) { alert('仲未開工喎！'); return; }
+  const v = parseFloat(document.getElementById('moneyInput').value);
+  if (isNaN(v) || v < 0) { alert('請輸入今日賺咗幾多錢！'); return; }
+  openRec.out = Date.now();
+  openRec.money = Math.round(v * 10) / 10;
+  records.push(openRec);
+  openRec = null;
+  document.getElementById('moneyInput').value = '';
+  saveLocal(); refresh(); cloudSave();
+  alert('✅ 收工打卡成功！今日賺咗 HK$' + v);
+}
+function delRec(i) {
+  if (confirm('確定刪除呢條記錄？')) { records.splice(i,1); saveLocal(); refresh(); cloudSave(); }
+}
+
+/* ---------- 匯出 ---------- */
+function download(name, content, mime) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], { type: mime }));
+  a.download = name; a.click();
+  URL.revokeObjectURL(a.href);
+}
+function exportCSV() {
+  if (!records.length) { alert('仲未有記錄！'); return; }
+  let csv = '\ufeff日期,開工時間,收工時間,工作時數,收入HK$\r\n';
+  records.forEach(r => {
+    csv += [r.date, fmtTime(r.in), r.out ? fmtTime(r.out) : '', r.out ? ((r.out-r.in)/3600000).toFixed(2) : '', r.money].join(',') + '\r\n';
+  });
+  download('keeta_' + todayStr().replace(/-/g,'') + '.csv', csv, 'text/csv;charset=utf-8');
+}
+function exportJSON() {
+  if (!records.length) { alert('仲未有記錄！'); return; }
+  download('keeta_' + todayStr().replace(/-/g,'') + '.json', JSON.stringify(records, null, 2), 'application/json');
+}
+
+/* ---------- 顯示 ---------- */
+function switchTab(v, el) {
+  view = v;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderRecords();
+}
+function renderRecords() {
+  const box = document.getElementById('recordBox');
+  if (!records.length) { box.innerHTML = '<div class="empty">仲未有記錄，快啲開工打卡啦！</div>'; return; }
+  let html = '<table><tr><th>日期</th>' + (view==='day'?'<th>開工</th><th>收工</th><th>時數</th>':'') + '<th>收入</th><th></th></tr>';
+  if (view === 'day') {
+    [...records].reverse().forEach(r => {
+      const idx = records.indexOf(r);
+      html += `<tr><td>${r.date}</td><td>${fmtTime(r.in)}</td><td>${r.out?fmtTime(r.out):'-'}</td><td>${r.out?fmtDur(r.out-r.in):'-'}</td><td class="money">$${r.money}</td><td><span class="del" onclick="delRec(${idx})">✕</span></td></tr>`;
+    });
+  } else {
+    const groups = {};
+    records.forEach(r => {
+      const d = new Date(r.in);
+      let k;
+      if (view === 'week') {
+        const onejan = new Date(d.getFullYear(),0,1);
+        const week = Math.ceil((((d - onejan) / 86400000) + onejan.getDay() + 1) / 7);
+        k = d.getFullYear() + ' 第' + week + '週';
+      } else {
+        k = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+      }
+      if (!groups[k]) groups[k] = { money:0, hours:0, days:0 };
+      groups[k].money += r.money;
+      groups[k].days++;
+      if (r.out) groups[k].hours += (r.out - r.in) / 3600000;
+    });
+    Object.keys(groups).sort().reverse().forEach(k => {
+      const g = groups[k];
+      html += `<tr><td>${k}</td><td>${g.days}日</td><td>${g.hours.toFixed(1)}h</td><td class="money">$${g.money.toFixed(1)}</td><td></td></tr>`;
+    });
+  }
+  html += '</table>';
+  box.innerHTML = html;
+}
+function refresh() {
+  const st = document.getElementById('statusBox');
+  const btnIn = document.getElementById('btnIn');
+  const btnOut = document.getElementById('btnOut');
+  if (openRec) {
+    st.className = 'status on';
+    st.innerHTML = '✅ 開工中<small>' + openRec.date + ' ' + fmtTime(openRec.in) + ' 開工</small>';
+    btnIn.disabled = true; btnOut.disabled = false;
+  } else {
+    st.className = 'status off';
+    st.innerHTML = '🔴 未開工<small></small>';
+    btnIn.disabled = false; btnOut.disabled = true;
+  }
+  const total = records.reduce((s,r) => s + r.money, 0);
+  const hours = records.reduce((s,r) => s + (r.out ? (r.out - r.in) : 0), 0) / 3600000;
+  const now = new Date();
+  const weekStart = new Date(now); weekStart.setDate(now.getDate() - ((now.getDay()+6)%7)); weekStart.setHours(0,0,0,0);
+  const monthStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+  document.getElementById('stTotal').textContent = '$' + total.toFixed(1);
+  document.getElementById('stDays').textContent = records.length + '日';
+  document.getElementById('stAvg').textContent = '$' + (records.length ? (total/records.length).toFixed(1) : 0);
+  document.getElementById('stHours').textContent = hours.toFixed(1) + '小時';
+  document.getElementById('stWeek').textContent = '$' + records.filter(r => r.in >= weekStart.getTime()).reduce((s,r) => s + r.money, 0).toFixed(1);
+  document.getElementById('stMonth').textContent = '$' + records.filter(r => r.date.startsWith(monthStr)).reduce((s,r) => s + r.money, 0).toFixed(1);
+  renderRecords();
+}
+
+/* ---------- 啟動 ---------- */
+if (cfg) {
+  document.getElementById('cfgUser').value = cfg.user;
+  document.getElementById('cfgRepo').value = cfg.repo;
+  document.getElementById('cfgToken').value = cfg.token;
+  cloudLoad();
+}
+refresh();
+</script>
+</body>
+</html>
