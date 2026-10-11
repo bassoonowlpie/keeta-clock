@@ -36,6 +36,7 @@
   th, td { padding:8px 4px; text-align:center; border-bottom:1px solid #eee; }
   th { color:#888; font-weight:600; font-size:12px; }
   td.money { color:#1e8449; font-weight:700; }
+  td.money-sub { color:#bbb; font-size:11px; }
   .del { color:#ccc; cursor:pointer; font-size:15px; }
   .empty { text-align:center; color:#aaa; padding:20px; font-size:14px; }
   .footer { text-align:center; color:#bbb; font-size:12px; margin-top:16px; }
@@ -50,6 +51,7 @@
   .sync-row .btn { margin-bottom:0; padding:12px; font-size:14px; }
   details summary { cursor:pointer; }
   .last-sync { text-align:center; font-size:11px; color:#bbb; margin-top:4px; }
+  .tip { font-size:11px; color:#999; text-align:center; margin-top:4px; }
 </style>
 </head>
 <body>
@@ -60,7 +62,7 @@
 <div class="card">
   <div id="statusBox" class="status off">未開工<small></small></div>
   <button id="btnIn" class="btn btn-in" onclick="clockIn()">📍 開工打卡</button>
-  <input id="moneyInput" class="money-input" type="number" inputmode="decimal" min="0" step="0.1" placeholder="收工請輸入今日賺咗幾多錢（HK$）">
+  <input id="moneyInput" class="money-input" type="number" inputmode="decimal" min="0" step="0.1" placeholder="收工請輸入今日累計賺咗幾多錢（HK$）">
   <button id="btnOut" class="btn btn-out" onclick="clockOut()" disabled>🏁 收工打卡</button>
   <div id="syncMsg" class="sync-msg"></div>
   <div class="sync-row">
@@ -68,6 +70,7 @@
     <button class="btn btn-small btn-gray" onclick="syncFromCloud()">📥 從雲端下載</button>
   </div>
   <div id="lastSync" class="last-sync"></div>
+  <div class="tip">💡 一天可多次打卡，收工輸入當天累計總收入</div>
 </div>
 
 <div class="card">
@@ -151,6 +154,31 @@ function setLastSync() {
   el.textContent = '最後同步：' + fmtTime(Date.now());
 }
 
+/* ---------- 每日收入計算（同一天多次打卡只計最後一次收入） ---------- */
+function dailyIncomeMap() {
+  const map = {};
+  records.forEach(r => {
+    if (r.money != null) map[r.date] = r.money;
+  });
+  return map;
+}
+function sumDailyIncome(filterFn) {
+  const map = dailyIncomeMap();
+  let sum = 0;
+  Object.keys(map).forEach(date => {
+    if (!filterFn || filterFn(date)) sum += map[date];
+  });
+  return sum;
+}
+function countWorkDays(filterFn) {
+  const map = dailyIncomeMap();
+  let count = 0;
+  Object.keys(map).forEach(date => {
+    if (!filterFn || filterFn(date)) count++;
+  });
+  return count;
+}
+
 /* ---------- GitHub 雲端同步 ---------- */
 function ghHeaders() {
   return { 'Authorization': 'token ' + cfg.token, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' };
@@ -158,9 +186,7 @@ function ghHeaders() {
 
 function mergeRecords(localRecs, cloudRecs) {
   const map = {};
-  // 本地記錄優先
   (localRecs || []).forEach(r => { if (!deletedIds.includes(r.id)) map[r.id] = r; });
-  // 雲端記錄：本地冇嘅先加入
   (cloudRecs || []).forEach(r => {
     if (deletedIds.includes(r.id)) return;
     if (!map[r.id]) map[r.id] = r;
@@ -179,11 +205,8 @@ async function cloudLoad() {
     const j = await r.json();
     cloudSha = j.sha;
     const cloudData = JSON.parse(decodeURIComponent(escape(atob(j.content.replace(/\n/g,'')))));
-    // 合併 deletedIds
     (cloudData.deletedIds || []).forEach(id => { if (!deletedIds.includes(id)) deletedIds.push(id); });
-    // 合併 records
     records = mergeRecords(records, cloudData.records);
-    // 合併 openRec
     if (cloudData.openRec && !deletedIds.includes(cloudData.openRec.id)) {
       if (!openRec || cloudData.openRec.in > openRec.in) openRec = cloudData.openRec;
     }
@@ -205,9 +228,7 @@ async function cloudSave() {
     if (r.ok) {
       const j = await r.json(); cloudSha = j.sha;
       const cd = JSON.parse(decodeURIComponent(escape(atob(j.content.replace(/\n/g,'')))));
-      // 合併對方的 deletedIds
       (cd.deletedIds || []).forEach(id => { if (!deletedIds.includes(id)) deletedIds.push(id); });
-      // 合併 records（本地為準，加入對方新增嘅）
       records = mergeRecords(records, cd.records);
     } else {
       cloudSha = null;
@@ -291,7 +312,7 @@ async function clockIn() {
 async function clockOut() {
   if (!openRec) { alert('仲未開工喎！'); return; }
   const v = parseFloat(document.getElementById('moneyInput').value);
-  if (isNaN(v) || v < 0) { alert('請輸入今日賺咗幾多錢！'); return; }
+  if (isNaN(v) || v < 0) { alert('請輸入今日累計賺咗幾多錢！'); return; }
   openRec.out = Date.now();
   openRec.money = Math.round(v * 10) / 10;
   records.push(openRec);
@@ -301,12 +322,12 @@ async function clockOut() {
   if (cfg) {
     const ok = await cloudSave();
     if (ok) {
-      alert('✅ 收工打卡成功！已同步到雲端\n今日賺咗 HK$' + v);
+      alert('✅ 收工打卡成功！已同步到雲端\n今日累計賺咗 HK$' + v);
     } else {
-      alert('✅ 收工打卡成功！（雲端同步失敗，已保留喺本機）\n今日賺咗 HK$' + v);
+      alert('✅ 收工打卡成功！（雲端同步失敗，已保留喺本機）\n今日累計賺咗 HK$' + v);
     }
   } else {
-    alert('✅ 收工打卡成功！今日賺咗 HK$' + v);
+    alert('✅ 收工打卡成功！今日累計賺咗 HK$' + v);
   }
 }
 
@@ -334,9 +355,12 @@ function download(name, content, mime) {
 }
 function exportCSV() {
   if (!records.length) { alert('仲未有記錄！'); return; }
-  let csv = '\ufeff日期,開工時間,收工時間,工作時數,收入HK$\r\n';
+  const incMap = dailyIncomeMap();
+  let csv = '\ufeff日期,開工時間,收工時間,工作時數,當日累計收入HK$,備註\r\n';
   records.forEach(r => {
-    csv += [r.date, fmtTime(r.in), r.out ? fmtTime(r.out) : '', r.out ? ((r.out-r.in)/3600000).toFixed(2) : '', r.money].join(',') + '\r\n';
+    const isLastOfDay = incMap[r.date] === r.money;
+    const note = isLastOfDay ? '當日最後一次收工' : '';
+    csv += [r.date, fmtTime(r.in), r.out ? fmtTime(r.out) : '', r.out ? ((r.out-r.in)/3600000).toFixed(2) : '', r.money, note].join(',') + '\r\n';
   });
   download('keeta_' + todayStr().replace(/-/g,'') + '.csv', csv, 'text/csv;charset=utf-8');
 }
@@ -355,11 +379,14 @@ function switchTab(v, el) {
 function renderRecords() {
   const box = document.getElementById('recordBox');
   if (!records.length) { box.innerHTML = '<div class="empty">仲未有記錄，快啲開工打卡啦！</div>'; return; }
+  const incMap = dailyIncomeMap();
   let html = '<table><tr><th>日期</th>' + (view==='day'?'<th>開工</th><th>收工</th><th>時數</th>':'') + '<th>收入</th><th></th></tr>';
   if (view === 'day') {
     [...records].reverse().forEach(r => {
       const idx = records.indexOf(r);
-      html += `<tr><td>${r.date}</td><td>${fmtTime(r.in)}</td><td>${r.out?fmtTime(r.out):'-'}</td><td>${r.out?fmtDur(r.out-r.in):'-'}</td><td class="money">$${r.money}</td><td><span class="del" onclick="delRec(${idx})">✕</span></td></tr>`;
+      const isLastOfDay = incMap[r.date] === r.money && r.money != null;
+      const moneyDisplay = isLastOfDay ? `$${r.money}` : (r.money != null ? `<span class="money-sub">累計 $${r.money}</span>` : '-');
+      html += `<tr><td>${r.date}</td><td>${fmtTime(r.in)}</td><td>${r.out?fmtTime(r.out):'-'}</td><td>${r.out?fmtDur(r.out-r.in):'-'}</td><td class="money">${moneyDisplay}</td><td><span class="del" onclick="delRec(${idx})">✕</span></td></tr>`;
     });
   } else {
     const groups = {};
@@ -373,14 +400,27 @@ function renderRecords() {
       } else {
         k = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
       }
-      if (!groups[k]) groups[k] = { money:0, hours:0, days:0 };
-      groups[k].money += r.money;
-      groups[k].days++;
+      if (!groups[k]) groups[k] = { money:0, hours:0, days: new Set() };
+      groups[k].days.add(r.date);
       if (r.out) groups[k].hours += (r.out - r.in) / 3600000;
+    });
+    // 收入按天去重後加總
+    const dayMap = dailyIncomeMap();
+    Object.keys(dayMap).forEach(date => {
+      const d = new Date(date);
+      let k;
+      if (view === 'week') {
+        const onejan = new Date(d.getFullYear(),0,1);
+        const week = Math.ceil((((d - onejan) / 86400000) + onejan.getDay() + 1) / 7);
+        k = d.getFullYear() + ' 第' + week + '週';
+      } else {
+        k = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+      }
+      if (groups[k]) groups[k].money += dayMap[date];
     });
     Object.keys(groups).sort().reverse().forEach(k => {
       const g = groups[k];
-      html += `<tr><td>${k}</td><td>${g.days}日</td><td>${g.hours.toFixed(1)}h</td><td class="money">$${g.money.toFixed(1)}</td><td></td></tr>`;
+      html += `<tr><td>${k}</td><td>${g.days.size}日</td><td>${g.hours.toFixed(1)}h</td><td class="money">$${g.money.toFixed(1)}</td><td></td></tr>`;
     });
   }
   html += '</table>';
@@ -399,17 +439,25 @@ function refresh() {
     st.innerHTML = '🔴 未開工<small></small>';
     btnIn.disabled = false; btnOut.disabled = true;
   }
-  const total = records.reduce((s,r) => s + r.money, 0);
+  // 工時照樣累計所有記錄
   const hours = records.reduce((s,r) => s + (r.out ? (r.out - r.in) : 0), 0) / 3600000;
+  // 收入按天去重計算
+  const total = sumDailyIncome();
   const now = new Date();
   const weekStart = new Date(now); weekStart.setDate(now.getDate() - ((now.getDay()+6)%7)); weekStart.setHours(0,0,0,0);
   const monthStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+  const totalDays = countWorkDays();
+  const weekDays = countWorkDays(d => new Date(d) >= weekStart);
+  const monthDays = countWorkDays(d => d.startsWith(monthStr));
+  const weekIncome = sumDailyIncome(d => new Date(d) >= weekStart);
+  const monthIncome = sumDailyIncome(d => d.startsWith(monthStr));
+
   document.getElementById('stTotal').textContent = '$' + total.toFixed(1);
-  document.getElementById('stDays').textContent = records.length + '日';
-  document.getElementById('stAvg').textContent = '$' + (records.length ? (total/records.length).toFixed(1) : 0);
+  document.getElementById('stDays').textContent = totalDays + '日';
+  document.getElementById('stAvg').textContent = '$' + (totalDays ? (total/totalDays).toFixed(1) : 0);
   document.getElementById('stHours').textContent = hours.toFixed(1) + '小時';
-  document.getElementById('stWeek').textContent = '$' + records.filter(r => r.in >= weekStart.getTime()).reduce((s,r) => s + r.money, 0).toFixed(1);
-  document.getElementById('stMonth').textContent = '$' + records.filter(r => r.date.startsWith(monthStr)).reduce((s,r) => s + r.money, 0).toFixed(1);
+  document.getElementById('stWeek').textContent = '$' + weekIncome.toFixed(1);
+  document.getElementById('stMonth').textContent = '$' + monthIncome.toFixed(1);
   renderRecords();
 }
 
