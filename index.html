@@ -23,10 +23,8 @@
   .btn-small { padding:10px; font-size:14px; border-radius:10px; background:#2c3e50; color:#fff; margin-bottom:8px; }
   .btn-gray { background:#7f8c8d; }
   .btn-blue { background:#2980b9; }
-  .btn-orange { background:#e67e22; }
-  .money-input, .cfg-input, .pwd-input { width:100%; padding:14px; font-size:16px; border:2px solid #ddd; border-radius:12px; margin-bottom:10px; }
+  .money-input, .cfg-input { width:100%; padding:14px; font-size:16px; border:2px solid #ddd; border-radius:12px; margin-bottom:10px; }
   .money-input { border-color:#e74c3c; font-size:20px; text-align:center; }
-  .pwd-input { font-size:18px; text-align:center; letter-spacing:4px; }
   .stats { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .stat { background:#f8f9fa; border-radius:10px; padding:12px; text-align:center; }
   .stat .v { font-size:20px; font-weight:700; color:#222; }
@@ -54,35 +52,11 @@
   details summary { cursor:pointer; }
   .last-sync { text-align:center; font-size:11px; color:#bbb; margin-top:4px; }
   .tip { font-size:11px; color:#999; text-align:center; margin-top:4px; }
-
-  /* 密碼鎖 */
-  #lockScreen { position:fixed; inset:0; background:#2c3e50; z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; }
-  #lockScreen h2 { color:#fff; font-size:22px; margin-bottom:8px; }
-  #lockScreen p { color:#aaa; font-size:14px; margin-bottom:20px; text-align:center; }
-  #lockScreen .lock-box { width:100%; max-width:320px; }
-  #lockScreen .btn { margin-bottom:10px; }
-  #lockScreen .pwd-input { margin-bottom:12px; }
-  .lock-error { color:#e74c3c; font-size:13px; text-align:center; margin-top:8px; min-height:18px; }
-
-  /* Calendar 連結 */
   .cal-link { display:block; text-align:center; padding:12px; background:#fff3e0; border-radius:10px; color:#e67e22; text-decoration:none; font-weight:600; font-size:14px; margin-top:10px; border:1px solid #ffe0b2; }
   .cal-link:active { background:#ffe0b2; }
 </style>
 </head>
 <body>
-
-<!-- 密碼鎖 -->
-<div id="lockScreen">
-  <h2>🔒 Keeta 打卡器</h2>
-  <p>請輸入密碼以繼續<br><small>（首次使用請設定密碼）</small></p>
-  <div class="lock-box">
-    <input id="lockPwd" class="pwd-input" type="password" placeholder="輸入密碼" onkeydown="if(event.key==='Enter')checkLock()">
-    <button class="btn btn-in" onclick="checkLock()" id="lockBtn">進入</button>
-    <div id="lockError" class="lock-error"></div>
-  </div>
-</div>
-
-<div id="mainApp" style="display:none">
 
 <h1>🛵 Keeta 步兵打卡器</h1>
 <div class="sub">開工撳綠色掣 ・ 收工撳紅色掣</div>
@@ -143,27 +117,12 @@
   </details>
 </div>
 
-<div class="card">
-  <details>
-    <summary class="cfg-toggle">🔒 更改密碼</summary>
-    <div style="margin-top:12px">
-      <input id="oldPwd" class="cfg-input" type="password" placeholder="舊密碼">
-      <input id="newPwd" class="cfg-input" type="password" placeholder="新密碼">
-      <button class="btn btn-small btn-orange" onclick="changePassword()">更改密碼</button>
-      <div id="pwdMsg" class="sync-msg"></div>
-    </div>
-  </details>
-</div>
-
 <div class="footer">資料本地備份 + GitHub 雲端同步 ☁️</div>
-
-</div>
 
 <script>
 const KEY = 'keeta_walker_records';
 const CFG = 'keeta_walker_cfg';
 const DELETED_KEY = 'keeta_walker_deleted';
-const PWD_KEY = 'keeta_walker_pwd';
 let records = JSON.parse(localStorage.getItem(KEY) || '[]');
 let openRec = JSON.parse(localStorage.getItem(KEY + '_open') || 'null');
 let deletedIds = JSON.parse(localStorage.getItem(DELETED_KEY) || '[]');
@@ -171,51 +130,6 @@ let cfg = JSON.parse(localStorage.getItem(CFG) || 'null');
 let view = 'day';
 let cloudSha = null;
 let syncing = false;
-
-function hashPwd(s) {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) { h = ((h << 5) - h + s.charCodeAt(i)) | 0; }
-  return String(h);
-}
-function getStoredPwd() { return localStorage.getItem(PWD_KEY); }
-function setStoredPwd(p) { localStorage.setItem(PWD_KEY, hashPwd(p)); }
-
-function checkLock() {
-  const input = document.getElementById('lockPwd').value;
-  const stored = getStoredPwd();
-  const err = document.getElementById('lockError');
-  const btn = document.getElementById('lockBtn');
-  if (!input) { err.textContent = '請輸入密碼'; return; }
-  if (!stored) {
-    setStoredPwd(input);
-    err.textContent = '';
-    unlock();
-    return;
-  }
-  if (hashPwd(input) === stored) {
-    err.textContent = '';
-    unlock();
-  } else {
-    err.textContent = '密碼錯誤，請再試';
-    document.getElementById('lockPwd').value = '';
-  }
-}
-function unlock() {
-  document.getElementById('lockScreen').style.display = 'none';
-  document.getElementById('mainApp').style.display = 'block';
-  initApp();
-}
-function changePassword() {
-  const oldP = document.getElementById('oldPwd').value;
-  const newP = document.getElementById('newPwd').value;
-  const msgEl = document.getElementById('pwdMsg');
-  if (!oldP || !newP) { msgEl.textContent = '兩項都要填'; msgEl.className = 'sync-msg err'; return; }
-  if (hashPwd(oldP) !== getStoredPwd()) { msgEl.textContent = '舊密碼錯誤'; msgEl.className = 'sync-msg err'; return; }
-  setStoredPwd(newP);
-  msgEl.textContent = '✅ 密碼已更改'; msgEl.className = 'sync-msg ok';
-  document.getElementById('oldPwd').value = '';
-  document.getElementById('newPwd').value = '';
-}
 
 function saveLocal() {
   localStorage.setItem(KEY, JSON.stringify(records));
@@ -526,21 +440,13 @@ if (document.visibilityState !== undefined) {
 }
 
 /* ---------- 啟動 ---------- */
-function initApp() {
-  if (cfg) {
-    document.getElementById('cfgUser').value = cfg.user;
-    document.getElementById('cfgRepo').value = cfg.repo;
-    document.getElementById('cfgToken').value = cfg.token;
-    cloudLoad().then(() => { if (!openRec) cloudSave(); });
-  }
-  refresh();
+if (cfg) {
+  document.getElementById('cfgUser').value = cfg.user;
+  document.getElementById('cfgRepo').value = cfg.repo;
+  document.getElementById('cfgToken').value = cfg.token;
+  cloudLoad().then(() => { if (!openRec) cloudSave(); });
 }
-// 如果冇密碼就直接顯示
-if (!getStoredPwd()) {
-  document.getElementById('lockScreen').style.display = 'flex';
-} else {
-  unlock();
-}
+refresh();
 </script>
 </body>
 </html>
