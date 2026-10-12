@@ -54,6 +54,9 @@
   .tip { font-size:11px; color:#999; text-align:center; margin-top:4px; }
   .cal-link { display:block; text-align:center; padding:12px; background:#fff3e0; border-radius:10px; color:#e67e22; text-decoration:none; font-weight:600; font-size:14px; margin-top:10px; border:1px solid #ffe0b2; }
   .cal-link:active { background:#ffe0b2; }
+  .cal-btn { display:inline-block; background:#e67e22; color:#fff; border-radius:6px; padding:3px 8px; font-size:12px; text-decoration:none; margin-left:4px; }
+  .cal-btn:active { background:#d35400; }
+  .action-btns { white-space:nowrap; }
 </style>
 </head>
 <body>
@@ -67,7 +70,6 @@
   <input id="moneyInput" class="money-input" type="number" inputmode="decimal" min="0" step="0.1" placeholder="收工請輸入今日累計賺咗幾多錢（HK$）">
   <button id="btnOut" class="btn btn-out" onclick="clockOut()" disabled>🏁 收工打卡</button>
   <div id="syncMsg" class="sync-msg"></div>
-  <a id="calLink" class="cal-link" style="display:none" target="_blank">📅 加入 Google 行事曆</a>
   <div class="sync-row">
     <button class="btn btn-small btn-blue" onclick="forceSync()">☁️ 立即同步</button>
     <button class="btn btn-small btn-gray" onclick="syncFromCloud()">📥 從雲端下載</button>
@@ -164,16 +166,9 @@ function toCalDate(ts) {
 }
 function makeCalLink(startTs, endTs, money) {
   const text = 'Keeta 步兵開工';
-  const details = '當日累計收入：HK$' + money;
+  const details = '當日累計收入：HK$' + (money || 0);
   const dates = toCalDate(startTs) + '/' + toCalDate(endTs);
   return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent(text) + '&details=' + encodeURIComponent(details) + '&dates=' + dates;
-}
-function showCalLink(rec) {
-  const a = document.getElementById('calLink');
-  if (!rec || !rec.out) { a.style.display = 'none'; return; }
-  a.href = makeCalLink(rec.in, rec.out, rec.money || 0);
-  a.style.display = 'block';
-  a.textContent = '📅 將呢段開工時間加入 Google 行事曆';
 }
 
 /* ---------- 每日收入計算 ---------- */
@@ -287,7 +282,6 @@ async function clockIn() {
   if (openRec) { alert('已經開咗工㗎喇！'); return; }
   openRec = { id: uid(), date: todayStr(), in: Date.now(), out: null, money: null };
   saveLocal(); refresh();
-  document.getElementById('calLink').style.display = 'none';
   if (cfg) {
     const ok = await cloudSave();
     if (ok) alert('✅ 開工打卡成功！已同步到雲端\n' + fmtTime(openRec.in));
@@ -301,11 +295,10 @@ async function clockOut() {
   if (isNaN(v) || v < 0) { alert('請輸入今日累計賺咗幾多錢！'); return; }
   openRec.out = Date.now();
   openRec.money = Math.round(v * 10) / 10;
-  const savedRec = { ...openRec };
   records.push(openRec);
   openRec = null;
   document.getElementById('moneyInput').value = '';
-  saveLocal(); refresh(); showCalLink(savedRec);
+  saveLocal(); refresh();
   if (cfg) {
     const ok = await cloudSave();
     if (ok) alert('✅ 收工打卡成功！已同步到雲端\n今日累計賺咗 HK$' + v);
@@ -362,7 +355,8 @@ function renderRecords() {
       const idx = records.indexOf(r);
       const isLastOfDay = incMap[r.date] === r.money && r.money != null;
       const moneyDisplay = isLastOfDay ? `$${r.money}` : (r.money != null ? `<span class="money-sub">累計 $${r.money}</span>` : '-');
-      html += `<tr><td>${r.date}</td><td>${fmtTime(r.in)}</td><td>${r.out?fmtTime(r.out):'-'}</td><td>${r.out?fmtDur(r.out-r.in):'-'}</td><td class="money">${moneyDisplay}</td><td><span class="del" onclick="delRec(${idx})">✕</span></td></tr>`;
+      const calBtn = r.out ? `<a class="cal-btn" href="${makeCalLink(r.in, r.out, r.money)}" target="_blank">📅</a>` : '';
+      html += `<tr><td>${r.date}</td><td>${fmtTime(r.in)}</td><td>${r.out?fmtTime(r.out):'-'}</td><td>${r.out?fmtDur(r.out-r.in):'-'}</td><td class="money">${moneyDisplay}</td><td class="action-btns">${calBtn}<span class="del" onclick="delRec(${idx})">✕</span></td></tr>`;
     });
   } else {
     const groups = {};
