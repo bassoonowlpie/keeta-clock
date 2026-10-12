@@ -52,8 +52,6 @@
   details summary { cursor:pointer; }
   .last-sync { text-align:center; font-size:11px; color:#bbb; margin-top:4px; }
   .tip { font-size:11px; color:#999; text-align:center; margin-top:4px; }
-  .cal-link { display:block; text-align:center; padding:12px; background:#fff3e0; border-radius:10px; color:#e67e22; text-decoration:none; font-weight:600; font-size:14px; margin-top:10px; border:1px solid #ffe0b2; }
-  .cal-link:active { background:#ffe0b2; }
   .cal-btn { display:inline-block; background:#e67e22; color:#fff; border-radius:6px; padding:3px 8px; font-size:12px; text-decoration:none; margin-left:4px; }
   .cal-btn:active { background:#d35400; }
   .action-btns { white-space:nowrap; }
@@ -165,7 +163,7 @@ function toCalDate(ts) {
   return d.toISOString().replace(/[-:]/g,'').split('.')[0] + 'Z';
 }
 function makeCalLink(startTs, endTs, money) {
-  const text = 'Keeta 步兵開工';
+  const text = 'Keeta開工';
   const details = '當日累計收入：HK$' + (money || 0);
   const dates = toCalDate(startTs) + '/' + toCalDate(endTs);
   return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent(text) + '&details=' + encodeURIComponent(details) + '&dates=' + dates;
