@@ -23,8 +23,10 @@
   .btn-small { padding:10px; font-size:14px; border-radius:10px; background:#2c3e50; color:#fff; margin-bottom:8px; }
   .btn-gray { background:#7f8c8d; }
   .btn-blue { background:#2980b9; }
-  .money-input, .cfg-input { width:100%; padding:14px; font-size:16px; border:2px solid #ddd; border-radius:12px; margin-bottom:10px; }
+  .btn-orange { background:#e67e22; }
+  .money-input, .cfg-input, .pwd-input { width:100%; padding:14px; font-size:16px; border:2px solid #ddd; border-radius:12px; margin-bottom:10px; }
   .money-input { border-color:#e74c3c; font-size:20px; text-align:center; }
+  .pwd-input { font-size:18px; text-align:center; letter-spacing:4px; }
   .stats { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .stat { background:#f8f9fa; border-radius:10px; padding:12px; text-align:center; }
   .stat .v { font-size:20px; font-weight:700; color:#222; }
@@ -52,9 +54,35 @@
   details summary { cursor:pointer; }
   .last-sync { text-align:center; font-size:11px; color:#bbb; margin-top:4px; }
   .tip { font-size:11px; color:#999; text-align:center; margin-top:4px; }
+
+  /* 密碼鎖 */
+  #lockScreen { position:fixed; inset:0; background:#2c3e50; z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; }
+  #lockScreen h2 { color:#fff; font-size:22px; margin-bottom:8px; }
+  #lockScreen p { color:#aaa; font-size:14px; margin-bottom:20px; text-align:center; }
+  #lockScreen .lock-box { width:100%; max-width:320px; }
+  #lockScreen .btn { margin-bottom:10px; }
+  #lockScreen .pwd-input { margin-bottom:12px; }
+  .lock-error { color:#e74c3c; font-size:13px; text-align:center; margin-top:8px; min-height:18px; }
+
+  /* Calendar 連結 */
+  .cal-link { display:block; text-align:center; padding:12px; background:#fff3e0; border-radius:10px; color:#e67e22; text-decoration:none; font-weight:600; font-size:14px; margin-top:10px; border:1px solid #ffe0b2; }
+  .cal-link:active { background:#ffe0b2; }
 </style>
 </head>
 <body>
+
+<!-- 密碼鎖 -->
+<div id="lockScreen">
+  <h2>🔒 Keeta 打卡器</h2>
+  <p>請輸入密碼以繼續<br><small>（首次使用請設定密碼）</small></p>
+  <div class="lock-box">
+    <input id="lockPwd" class="pwd-input" type="password" placeholder="輸入密碼" onkeydown="if(event.key==='Enter')checkLock()">
+    <button class="btn btn-in" onclick="checkLock()" id="lockBtn">進入</button>
+    <div id="lockError" class="lock-error"></div>
+  </div>
+</div>
+
+<div id="mainApp" style="display:none">
 
 <h1>🛵 Keeta 步兵打卡器</h1>
 <div class="sub">開工撳綠色掣 ・ 收工撳紅色掣</div>
@@ -65,6 +93,7 @@
   <input id="moneyInput" class="money-input" type="number" inputmode="decimal" min="0" step="0.1" placeholder="收工請輸入今日累計賺咗幾多錢（HK$）">
   <button id="btnOut" class="btn btn-out" onclick="clockOut()" disabled>🏁 收工打卡</button>
   <div id="syncMsg" class="sync-msg"></div>
+  <a id="calLink" class="cal-link" style="display:none" target="_blank">📅 加入 Google 行事曆</a>
   <div class="sync-row">
     <button class="btn btn-small btn-blue" onclick="forceSync()">☁️ 立即同步</button>
     <button class="btn btn-small btn-gray" onclick="syncFromCloud()">📥 從雲端下載</button>
@@ -114,12 +143,27 @@
   </details>
 </div>
 
+<div class="card">
+  <details>
+    <summary class="cfg-toggle">🔒 更改密碼</summary>
+    <div style="margin-top:12px">
+      <input id="oldPwd" class="cfg-input" type="password" placeholder="舊密碼">
+      <input id="newPwd" class="cfg-input" type="password" placeholder="新密碼">
+      <button class="btn btn-small btn-orange" onclick="changePassword()">更改密碼</button>
+      <div id="pwdMsg" class="sync-msg"></div>
+    </div>
+  </details>
+</div>
+
 <div class="footer">資料本地備份 + GitHub 雲端同步 ☁️</div>
+
+</div>
 
 <script>
 const KEY = 'keeta_walker_records';
 const CFG = 'keeta_walker_cfg';
 const DELETED_KEY = 'keeta_walker_deleted';
+const PWD_KEY = 'keeta_walker_pwd';
 let records = JSON.parse(localStorage.getItem(KEY) || '[]');
 let openRec = JSON.parse(localStorage.getItem(KEY + '_open') || 'null');
 let deletedIds = JSON.parse(localStorage.getItem(DELETED_KEY) || '[]');
@@ -127,6 +171,51 @@ let cfg = JSON.parse(localStorage.getItem(CFG) || 'null');
 let view = 'day';
 let cloudSha = null;
 let syncing = false;
+
+function hashPwd(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) { h = ((h << 5) - h + s.charCodeAt(i)) | 0; }
+  return String(h);
+}
+function getStoredPwd() { return localStorage.getItem(PWD_KEY); }
+function setStoredPwd(p) { localStorage.setItem(PWD_KEY, hashPwd(p)); }
+
+function checkLock() {
+  const input = document.getElementById('lockPwd').value;
+  const stored = getStoredPwd();
+  const err = document.getElementById('lockError');
+  const btn = document.getElementById('lockBtn');
+  if (!input) { err.textContent = '請輸入密碼'; return; }
+  if (!stored) {
+    setStoredPwd(input);
+    err.textContent = '';
+    unlock();
+    return;
+  }
+  if (hashPwd(input) === stored) {
+    err.textContent = '';
+    unlock();
+  } else {
+    err.textContent = '密碼錯誤，請再試';
+    document.getElementById('lockPwd').value = '';
+  }
+}
+function unlock() {
+  document.getElementById('lockScreen').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'block';
+  initApp();
+}
+function changePassword() {
+  const oldP = document.getElementById('oldPwd').value;
+  const newP = document.getElementById('newPwd').value;
+  const msgEl = document.getElementById('pwdMsg');
+  if (!oldP || !newP) { msgEl.textContent = '兩項都要填'; msgEl.className = 'sync-msg err'; return; }
+  if (hashPwd(oldP) !== getStoredPwd()) { msgEl.textContent = '舊密碼錯誤'; msgEl.className = 'sync-msg err'; return; }
+  setStoredPwd(newP);
+  msgEl.textContent = '✅ 密碼已更改'; msgEl.className = 'sync-msg ok';
+  document.getElementById('oldPwd').value = '';
+  document.getElementById('newPwd').value = '';
+}
 
 function saveLocal() {
   localStorage.setItem(KEY, JSON.stringify(records));
@@ -154,28 +243,41 @@ function setLastSync() {
   el.textContent = '最後同步：' + fmtTime(Date.now());
 }
 
-/* ---------- 每日收入計算（同一天多次打卡只計最後一次收入） ---------- */
+/* ---------- Google Calendar ---------- */
+function toCalDate(ts) {
+  const d = new Date(ts);
+  return d.toISOString().replace(/[-:]/g,'').split('.')[0] + 'Z';
+}
+function makeCalLink(startTs, endTs, money) {
+  const text = 'Keeta 步兵開工';
+  const details = '當日累計收入：HK$' + money;
+  const dates = toCalDate(startTs) + '/' + toCalDate(endTs);
+  return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent(text) + '&details=' + encodeURIComponent(details) + '&dates=' + dates;
+}
+function showCalLink(rec) {
+  const a = document.getElementById('calLink');
+  if (!rec || !rec.out) { a.style.display = 'none'; return; }
+  a.href = makeCalLink(rec.in, rec.out, rec.money || 0);
+  a.style.display = 'block';
+  a.textContent = '📅 將呢段開工時間加入 Google 行事曆';
+}
+
+/* ---------- 每日收入計算 ---------- */
 function dailyIncomeMap() {
   const map = {};
-  records.forEach(r => {
-    if (r.money != null) map[r.date] = r.money;
-  });
+  records.forEach(r => { if (r.money != null) map[r.date] = r.money; });
   return map;
 }
 function sumDailyIncome(filterFn) {
   const map = dailyIncomeMap();
   let sum = 0;
-  Object.keys(map).forEach(date => {
-    if (!filterFn || filterFn(date)) sum += map[date];
-  });
+  Object.keys(map).forEach(date => { if (!filterFn || filterFn(date)) sum += map[date]; });
   return sum;
 }
 function countWorkDays(filterFn) {
   const map = dailyIncomeMap();
   let count = 0;
-  Object.keys(map).forEach(date => {
-    if (!filterFn || filterFn(date)) count++;
-  });
+  Object.keys(map).forEach(date => { if (!filterFn || filterFn(date)) count++; });
   return count;
 }
 
@@ -183,7 +285,6 @@ function countWorkDays(filterFn) {
 function ghHeaders() {
   return { 'Authorization': 'token ' + cfg.token, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' };
 }
-
 function mergeRecords(localRecs, cloudRecs) {
   const map = {};
   (localRecs || []).forEach(r => { if (!deletedIds.includes(r.id)) map[r.id] = r; });
@@ -213,9 +314,7 @@ async function cloudLoad() {
     saveLocal(); refresh();
     msg('✅ 已從雲端同步 ' + records.length + ' 條記錄', 'ok');
     setLastSync();
-  } catch (e) {
-    msg('⚠️ 下載失敗：' + e.message, 'err');
-  }
+  } catch (e) { msg('⚠️ 下載失敗：' + e.message, 'err'); }
 }
 
 async function cloudSave() {
@@ -230,45 +329,25 @@ async function cloudSave() {
       const cd = JSON.parse(decodeURIComponent(escape(atob(j.content.replace(/\n/g,'')))));
       (cd.deletedIds || []).forEach(id => { if (!deletedIds.includes(id)) deletedIds.push(id); });
       records = mergeRecords(records, cd.records);
-    } else {
-      cloudSha = null;
-    }
+    } else { cloudSha = null; }
     const payload = JSON.stringify({ records, openRec, deletedIds });
-    const body = {
-      message: 'update clock records ' + todayStr() + ' ' + fmtTime(Date.now()),
-      content: btoa(unescape(encodeURIComponent(payload)))
-    };
+    const body = { message: 'update clock records ' + todayStr() + ' ' + fmtTime(Date.now()), content: btoa(unescape(encodeURIComponent(payload))) };
     if (cloudSha) body.sha = cloudSha;
     const w = await fetch('https://api.github.com/repos/' + cfg.user + '/' + cfg.repo + '/contents/data.json', {
       method: 'PUT', headers: ghHeaders(), body: JSON.stringify(body)
     });
-    if (!w.ok) {
-      const err = await w.json().catch(() => ({}));
-      throw new Error(err.message || 'HTTP ' + w.status);
-    }
+    if (!w.ok) { const err = await w.json().catch(() => ({})); throw new Error(err.message || 'HTTP ' + w.status); }
     const wj = await w.json();
     cloudSha = wj.content.sha;
     msg('✅ 已同步到 GitHub ☁️', 'ok');
-    setLastSync();
-    saveLocal(); refresh();
+    setLastSync(); saveLocal(); refresh();
     return true;
-  } catch (e) {
-    msg('⚠️ 同步失敗（已保留喺本機）：' + e.message, 'err');
-    return false;
-  } finally {
-    syncing = false;
-  }
+  } catch (e) { msg('⚠️ 同步失敗（已保留喺本機）：' + e.message, 'err'); return false; }
+  finally { syncing = false; }
 }
 
-async function forceSync() {
-  if (!cfg) { alert('請先喺下面設定 GitHub Token'); return; }
-  await cloudSave();
-}
-
-async function syncFromCloud() {
-  if (!cfg) { alert('請先喺下面設定 GitHub Token'); return; }
-  await cloudLoad();
-}
+async function forceSync() { if (!cfg) { alert('請先喺下面設定 GitHub Token'); return; } await cloudSave(); }
+async function syncFromCloud() { if (!cfg) { alert('請先喺下面設定 GitHub Token'); return; } await cloudLoad(); }
 
 function saveConfig() {
   const user = document.getElementById('cfgUser').value.trim();
@@ -277,14 +356,11 @@ function saveConfig() {
   if (!user || !repo || !token) { alert('三項都要填！'); return; }
   cfg = { user, repo, token };
   localStorage.setItem(CFG, JSON.stringify(cfg));
-  msg('');
-  cloudLoad().then(() => cloudSave());
+  msg(''); cloudLoad().then(() => cloudSave());
 }
-
 function clearConfig() {
   cfg = null; cloudSha = null; deletedIds = [];
-  localStorage.removeItem(CFG);
-  localStorage.removeItem(DELETED_KEY);
+  localStorage.removeItem(CFG); localStorage.removeItem(DELETED_KEY);
   document.getElementById('cfgUser').value = '';
   document.getElementById('cfgRepo').value = '';
   document.getElementById('cfgToken').value = '';
@@ -297,16 +373,12 @@ async function clockIn() {
   if (openRec) { alert('已經開咗工㗎喇！'); return; }
   openRec = { id: uid(), date: todayStr(), in: Date.now(), out: null, money: null };
   saveLocal(); refresh();
+  document.getElementById('calLink').style.display = 'none';
   if (cfg) {
     const ok = await cloudSave();
-    if (ok) {
-      alert('✅ 開工打卡成功！已同步到雲端\n' + fmtTime(openRec.in));
-    } else {
-      alert('✅ 開工打卡成功！（雲端同步失敗，已保留喺本機）\n' + fmtTime(openRec.in));
-    }
-  } else {
-    alert('✅ 開工打卡成功！' + fmtTime(openRec.in));
-  }
+    if (ok) alert('✅ 開工打卡成功！已同步到雲端\n' + fmtTime(openRec.in));
+    else alert('✅ 開工打卡成功！（雲端同步失敗，已保留喺本機）\n' + fmtTime(openRec.in));
+  } else alert('✅ 開工打卡成功！' + fmtTime(openRec.in));
 }
 
 async function clockOut() {
@@ -315,20 +387,16 @@ async function clockOut() {
   if (isNaN(v) || v < 0) { alert('請輸入今日累計賺咗幾多錢！'); return; }
   openRec.out = Date.now();
   openRec.money = Math.round(v * 10) / 10;
+  const savedRec = { ...openRec };
   records.push(openRec);
   openRec = null;
   document.getElementById('moneyInput').value = '';
-  saveLocal(); refresh();
+  saveLocal(); refresh(); showCalLink(savedRec);
   if (cfg) {
     const ok = await cloudSave();
-    if (ok) {
-      alert('✅ 收工打卡成功！已同步到雲端\n今日累計賺咗 HK$' + v);
-    } else {
-      alert('✅ 收工打卡成功！（雲端同步失敗，已保留喺本機）\n今日累計賺咗 HK$' + v);
-    }
-  } else {
-    alert('✅ 收工打卡成功！今日累計賺咗 HK$' + v);
-  }
+    if (ok) alert('✅ 收工打卡成功！已同步到雲端\n今日累計賺咗 HK$' + v);
+    else alert('✅ 收工打卡成功！（雲端同步失敗，已保留喺本機）\n今日累計賺咗 HK$' + v);
+  } else alert('✅ 收工打卡成功！今日累計賺咗 HK$' + v);
 }
 
 async function delRec(i) {
@@ -337,13 +405,8 @@ async function delRec(i) {
   records.splice(i, 1);
   if (!deletedIds.includes(id)) deletedIds.push(id);
   saveLocal(); refresh();
-  if (cfg) {
-    const ok = await cloudSave();
-    if (ok) msg('🗑 已刪除並同步到雲端', 'ok');
-    else msg('🗑 已刪除（雲端同步失敗）', 'err');
-  } else {
-    msg('🗑 已刪除', 'ok');
-  }
+  if (cfg) { const ok = await cloudSave(); if (ok) msg('🗑 已刪除並同步到雲端', 'ok'); else msg('🗑 已刪除（雲端同步失敗）', 'err'); }
+  else msg('🗑 已刪除', 'ok');
 }
 
 /* ---------- 匯出 ---------- */
@@ -359,8 +422,7 @@ function exportCSV() {
   let csv = '\ufeff日期,開工時間,收工時間,工作時數,當日累計收入HK$,備註\r\n';
   records.forEach(r => {
     const isLastOfDay = incMap[r.date] === r.money;
-    const note = isLastOfDay ? '當日最後一次收工' : '';
-    csv += [r.date, fmtTime(r.in), r.out ? fmtTime(r.out) : '', r.out ? ((r.out-r.in)/3600000).toFixed(2) : '', r.money, note].join(',') + '\r\n';
+    csv += [r.date, fmtTime(r.in), r.out ? fmtTime(r.out) : '', r.out ? ((r.out-r.in)/3600000).toFixed(2) : '', r.money, isLastOfDay ? '當日最後一次收工' : ''].join(',') + '\r\n';
   });
   download('keeta_' + todayStr().replace(/-/g,'') + '.csv', csv, 'text/csv;charset=utf-8');
 }
@@ -404,7 +466,6 @@ function renderRecords() {
       groups[k].days.add(r.date);
       if (r.out) groups[k].hours += (r.out - r.in) / 3600000;
     });
-    // 收入按天去重後加總
     const dayMap = dailyIncomeMap();
     Object.keys(dayMap).forEach(date => {
       const d = new Date(date);
@@ -439,19 +500,14 @@ function refresh() {
     st.innerHTML = '🔴 未開工<small></small>';
     btnIn.disabled = false; btnOut.disabled = true;
   }
-  // 工時照樣累計所有記錄
   const hours = records.reduce((s,r) => s + (r.out ? (r.out - r.in) : 0), 0) / 3600000;
-  // 收入按天去重計算
   const total = sumDailyIncome();
   const now = new Date();
   const weekStart = new Date(now); weekStart.setDate(now.getDate() - ((now.getDay()+6)%7)); weekStart.setHours(0,0,0,0);
   const monthStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
   const totalDays = countWorkDays();
-  const weekDays = countWorkDays(d => new Date(d) >= weekStart);
-  const monthDays = countWorkDays(d => d.startsWith(monthStr));
   const weekIncome = sumDailyIncome(d => new Date(d) >= weekStart);
   const monthIncome = sumDailyIncome(d => d.startsWith(monthStr));
-
   document.getElementById('stTotal').textContent = '$' + total.toFixed(1);
   document.getElementById('stDays').textContent = totalDays + '日';
   document.getElementById('stAvg').textContent = '$' + (totalDays ? (total/totalDays).toFixed(1) : 0);
@@ -462,26 +518,29 @@ function refresh() {
 }
 
 /* ---------- 背景自動同步 ---------- */
-setInterval(() => {
-  if (cfg && !syncing && !openRec) cloudSave();
-}, 60000);
-
+setInterval(() => { if (cfg && !syncing && !openRec) cloudSave(); }, 60000);
 if (document.visibilityState !== undefined) {
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && cfg) {
-      cloudLoad().then(() => { if (!openRec) cloudSave(); });
-    }
+    if (!document.hidden && cfg) { cloudLoad().then(() => { if (!openRec) cloudSave(); }); }
   });
 }
 
 /* ---------- 啟動 ---------- */
-if (cfg) {
-  document.getElementById('cfgUser').value = cfg.user;
-  document.getElementById('cfgRepo').value = cfg.repo;
-  document.getElementById('cfgToken').value = cfg.token;
-  cloudLoad().then(() => { if (!openRec) cloudSave(); });
+function initApp() {
+  if (cfg) {
+    document.getElementById('cfgUser').value = cfg.user;
+    document.getElementById('cfgRepo').value = cfg.repo;
+    document.getElementById('cfgToken').value = cfg.token;
+    cloudLoad().then(() => { if (!openRec) cloudSave(); });
+  }
+  refresh();
 }
-refresh();
+// 如果冇密碼就直接顯示
+if (!getStoredPwd()) {
+  document.getElementById('lockScreen').style.display = 'flex';
+} else {
+  unlock();
+}
 </script>
 </body>
 </html>
