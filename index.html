@@ -68,45 +68,45 @@
 <body>
 
 <h1>🛵 Keeta 步兵打卡器</h1>
-<div class="sub">开工按绿色按钮 ・ 收工按红色按钮</div>
+<div class="sub">開工按綠色按鈕 ・ 收工按紅色按鈕</div>
 
 <div class="card">
-  <div id="statusBox" class="status off">未开工<small></small></div>
-  <button id="btnIn" class="btn btn-in" onclick="clockIn()">📍 开工打卡</button>
-  <input id="moneyInput" class="money-input" type="number" inputmode="decimal" min="0" step="0.1" placeholder="收工请输入今日累计赚了多少钱（HK$）">
+  <div id="statusBox" class="status off">未開工<small></small></div>
+  <button id="btnIn" class="btn btn-in" onclick="clockIn()">📍 開工打卡</button>
+  <input id="moneyInput" class="money-input" type="number" inputmode="decimal" min="0" step="0.1" placeholder="收工請輸入今日累計賺了多少錢（HK$）">
   <button id="btnOut" class="btn btn-out" onclick="clockOut()" disabled>🏁 收工打卡</button>
   <div id="syncMsg" class="sync-msg"></div>
   <div class="sync-row">
     <button class="btn btn-small btn-blue" onclick="forceSync()">☁️ 立即同步</button>
-    <button class="btn btn-small btn-gray" onclick="syncFromCloud()">📥 从云端下载</button>
+    <button class="btn btn-small btn-gray" onclick="syncFromCloud()">📥 從雲端下載</button>
   </div>
   <div id="lastSync" class="last-sync"></div>
-  <div class="tip">💡 一天可多次打卡，收工输入当天累计总收入</div>
+  <div class="tip">💡 一天可多次打卡，收工輸入當天累計總收入</div>
 </div>
 
 <div class="card">
-  <input id="bonusInput" class="bonus-input" type="number" inputmode="decimal" min="0" step="0.1" placeholder="输入今日奖赏金额（HK$）">
-  <button class="btn btn-small btn-orange" onclick="addBonus()">🎁 加入今日奖赏</button>
+  <input id="bonusInput" class="bonus-input" type="number" inputmode="decimal" min="0" step="0.1" placeholder="輸入今日獎賞金額（HK$）">
+  <button class="btn btn-small btn-orange" onclick="addBonus()">🎁 加入今日獎賞</button>
   <div id="bonusMsg" class="sync-msg"></div>
 </div>
 
 <div class="card">
   <div class="stats">
-    <div class="stat"><div class="v" id="stTotal">$0</div><div class="l">💰 累计收入</div></div>
-    <div class="stat"><div class="v" id="stDays">0日</div><div class="l">📅 开工日数</div></div>
+    <div class="stat"><div class="v" id="stTotal">$0</div><div class="l">💰 累計收入</div></div>
+    <div class="stat"><div class="v" id="stDays">0日</div><div class="l">📅 開工日數</div></div>
     <div class="stat"><div class="v" id="stAvg">$0</div><div class="l">📊 平均每日</div></div>
-    <div class="stat"><div class="v" id="stHours">0小時</div><div class="l">⏱ 累计时数</div></div>
+    <div class="stat"><div class="v" id="stHours">0小時</div><div class="l">⏱ 累計時數</div></div>
     <div class="stat"><div class="v" id="stWeek">$0</div><div class="l">🗓 本星期</div></div>
     <div class="stat"><div class="v" id="stMonth">$0</div><div class="l">🗓 本月份</div></div>
-    <div class="stat"><div class="v" id="stBonus">$0</div><div class="l">🎁 累计奖赏</div></div>
-    <div class="stat"><div class="v" id="stWeekBonus">$0</div><div class="l">🎁 本星期奖赏</div></div>
+    <div class="stat"><div class="v" id="stBonus">$0</div><div class="l">🎁 累計獎賞</div></div>
+    <div class="stat"><div class="v" id="stWeekBonus">$0</div><div class="l">🎁 本星期獎賞</div></div>
   </div>
 </div>
 
 <div class="card">
   <div class="export-row">
-    <button class="btn btn-small" onclick="exportCSV()">📄 导出 CSV</button>
-    <button class="btn btn-small btn-gray" onclick="exportJSON()">📄 导出 JSON</button>
+    <button class="btn btn-small" onclick="exportCSV()">📄 導出 CSV</button>
+    <button class="btn btn-small btn-gray" onclick="exportJSON()">📄 導出 JSON</button>
   </div>
 </div>
 
@@ -121,19 +121,19 @@
 
 <div class="card">
   <details>
-    <summary class="cfg-toggle">⚙️ GitHub 云端同步设定（手机电脑共用资料）</summary>
+    <summary class="cfg-toggle">⚙️ GitHub 雲端同步設定（手機電腦共用資料）</summary>
     <div style="margin-top:12px">
-      <input id="cfgUser" class="cfg-input" placeholder="GitHub 用户名">
-      <input id="cfgRepo" class="cfg-input" placeholder="Repository 名称（例如 keeta-clock）">
+      <input id="cfgUser" class="cfg-input" placeholder="GitHub 用戶名">
+      <input id="cfgRepo" class="cfg-input" placeholder="Repository 名稱（例如 keeta-clock）">
       <input id="cfgToken" class="cfg-input" type="password" placeholder="Personal Access Token">
-      <button class="btn btn-small" onclick="saveConfig()">💾 储存设定并同步</button>
-      <button class="btn btn-small btn-gray" onclick="clearConfig()">清除云端设定</button>
-      <div class="sync-msg">Token 只储存在你的机器，不会上传。教学见安装步骤。</div>
+      <button class="btn btn-small" onclick="saveConfig()">💾 儲存設定並同步</button>
+      <button class="btn btn-small btn-gray" onclick="clearConfig()">清除雲端設定</button>
+      <div class="sync-msg">Token 只儲存在你的機器，不會上傳。教學見安裝步驟。</div>
     </div>
   </details>
 </div>
 
-<div class="footer">资料本地备份 + GitHub 云端同步 ☁️</div>
+<div class="footer">資料本地備份 + GitHub 雲端同步 ☁️</div>
 
 <script>
 const KEY = 'keeta_walker_records';
@@ -187,13 +187,13 @@ function toCalDate(ts) {
   return d.toISOString().replace(/[-:]/g,'').split('.')[0] + 'Z';
 }
 function makeCalLink(startTs, endTs, money) {
-  const text = 'Keeta开工';
-  const details = '当日累计收入：HK$' + (money || 0);
+  const text = 'Keeta開工';
+  const details = '當日累計收入：HK$' + (money || 0);
   const dates = toCalDate(startTs) + '/' + toCalDate(endTs);
   return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent(text) + '&details=' + encodeURIComponent(details) + '&dates=' + dates;
 }
 
-/* ---------- 每日收入计算（含奖赏） ---------- */
+/* ---------- 每日收入計算（含獎賞） ---------- */
 function getDayBonus(date) {
   return bonuses.filter(b => b.date === date).reduce((s, b) => s + b.amount, 0);
 }
@@ -227,26 +227,26 @@ function sumBonuses(filterFn) {
   return bonuses.reduce((s, b) => { if (!filterFn || filterFn(b.date)) return s + b.amount; return s; }, 0);
 }
 
-/* ---------- 奖赏 ---------- */
+/* ---------- 獎賞 ---------- */
 async function addBonus() {
   const v = parseFloat(document.getElementById('bonusInput').value);
-  if (isNaN(v) || v <= 0) { bonusMsg('请输入有效奖赏金额', 'err'); return; }
+  if (isNaN(v) || v <= 0) { bonusMsg('請輸入有效獎賞金額', 'err'); return; }
   bonuses.push({ id: uid(), date: todayStr(), amount: Math.round(v * 10) / 10 });
   document.getElementById('bonusInput').value = '';
   saveLocal(); refresh();
-  bonusMsg('✅ 已加入今日奖赏 HK$' + v, 'ok');
+  bonusMsg('✅ 已加入今日獎賞 HK$' + v, 'ok');
   if (cfg) await cloudSave();
 }
 async function delBonus(id) {
-  if (!confirm('确定删除这个奖赏？')) return;
+  if (!confirm('確定刪除這個獎賞？')) return;
   bonuses = bonuses.filter(b => b.id !== id);
   if (!deletedIds.includes(id)) deletedIds.push(id);
   saveLocal(); refresh();
-  if (cfg) { const ok = await cloudSave(); if (ok) msg('🗑 已删除奖赏并同步到云端', 'ok'); else msg('🗑 已删除奖赏（云端同步失败）', 'err'); }
-  else msg('🗑 已删除奖赏', 'ok');
+  if (cfg) { const ok = await cloudSave(); if (ok) msg('🗑 已刪除獎賞並同步到雲端', 'ok'); else msg('🗑 已刪除獎賞（雲端同步失敗）', 'err'); }
+  else msg('🗑 已刪除獎賞', 'ok');
 }
 
-/* ---------- GitHub 云端同步 ---------- */
+/* ---------- GitHub 雲端同步 ---------- */
 function ghHeaders() {
   return { 'Authorization': 'token ' + cfg.token, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' };
 }
@@ -273,9 +273,9 @@ function mergeBonuses(localBonuses, cloudBonuses) {
 async function cloudLoad() {
   if (!cfg) return;
   try {
-    msg('📥 正在从云端下载…', 'syncing');
+    msg('📥 正在從雲端下載…', 'syncing');
     const r = await fetch('https://api.github.com/repos/' + cfg.user + '/' + cfg.repo + '/contents/data.json', { headers: ghHeaders() });
-    if (r.status === 404) { cloudSha = null; msg('☁️ 云端未有资料，将会新建'); return; }
+    if (r.status === 404) { cloudSha = null; msg('☁️ 雲端未有資料，將會新建'); return; }
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const j = await r.json();
     cloudSha = j.sha;
@@ -287,17 +287,17 @@ async function cloudLoad() {
       if (!openRec || cloudData.openRec.in > openRec.in) openRec = cloudData.openRec;
     }
     saveLocal(); refresh();
-    msg('✅ 已从云端同步 ' + records.length + ' 条记录', 'ok');
+    msg('✅ 已從雲端同步 ' + records.length + ' 條記錄', 'ok');
     setLastSync();
-  } catch (e) { msg('⚠️ 下载失败：' + e.message, 'err'); }
+  } catch (e) { msg('⚠️ 下載失敗：' + e.message, 'err'); }
 }
 
 async function cloudSave() {
-  if (!cfg) { msg('未设定 GitHub（只用本机模式）'); return false; }
+  if (!cfg) { msg('未設定 GitHub（只用本機模式）'); return false; }
   if (syncing) return false;
   syncing = true;
   try {
-    msg('☁️ 正在同步上云端…', 'syncing');
+    msg('☁️ 正在同步上雲端…', 'syncing');
     const r = await fetch('https://api.github.com/repos/' + cfg.user + '/' + cfg.repo + '/contents/data.json', { headers: ghHeaders() });
     if (r.ok) {
       const j = await r.json(); cloudSha = j.sha;
@@ -318,18 +318,18 @@ async function cloudSave() {
     msg('✅ 已同步到 GitHub ☁️', 'ok');
     setLastSync(); saveLocal(); refresh();
     return true;
-  } catch (e) { msg('⚠️ 同步失败（已保留在本机）：' + e.message, 'err'); return false; }
+  } catch (e) { msg('⚠️ 同步失敗（已保留在本機）：' + e.message, 'err'); return false; }
   finally { syncing = false; }
 }
 
-async function forceSync() { if (!cfg) { alert('请先在下面设定 GitHub Token'); return; } await cloudSave(); }
-async function syncFromCloud() { if (!cfg) { alert('请先在下面设定 GitHub Token'); return; } await cloudLoad(); }
+async function forceSync() { if (!cfg) { alert('請先在下面設定 GitHub Token'); return; } await cloudSave(); }
+async function syncFromCloud() { if (!cfg) { alert('請先在下面設定 GitHub Token'); return; } await cloudLoad(); }
 
 function saveConfig() {
   const user = document.getElementById('cfgUser').value.trim();
   const repo = document.getElementById('cfgRepo').value.trim();
   const token = document.getElementById('cfgToken').value.trim();
-  if (!user || !repo || !token) { alert('三项都要填！'); return; }
+  if (!user || !repo || !token) { alert('三項都要填！'); return; }
   cfg = { user, repo, token };
   localStorage.setItem(CFG, JSON.stringify(cfg));
   msg(''); cloudLoad().then(() => cloudSave());
@@ -340,26 +340,26 @@ function clearConfig() {
   document.getElementById('cfgUser').value = '';
   document.getElementById('cfgRepo').value = '';
   document.getElementById('cfgToken').value = '';
-  msg('已清除云端设定，只用本机模式');
+  msg('已清除雲端設定，只用本機模式');
   document.getElementById('lastSync').textContent = '';
 }
 
 /* ---------- 打卡 ---------- */
 async function clockIn() {
-  if (openRec) { alert('已经开工了！'); return; }
+  if (openRec) { alert('已經開工了！'); return; }
   openRec = { id: uid(), date: todayStr(), in: Date.now(), out: null, money: null };
   saveLocal(); refresh();
   if (cfg) {
     const ok = await cloudSave();
-    if (ok) alert('✅ 开工打卡成功！已同步到云端\n' + fmtTime(openRec.in));
-    else alert('✅ 开工打卡成功！（云端同步失败，已保留在本机）\n' + fmtTime(openRec.in));
-  } else alert('✅ 开工打卡成功！' + fmtTime(openRec.in));
+    if (ok) alert('✅ 開工打卡成功！已同步到雲端\n' + fmtTime(openRec.in));
+    else alert('✅ 開工打卡成功！（雲端同步失敗，已保留在本機）\n' + fmtTime(openRec.in));
+  } else alert('✅ 開工打卡成功！' + fmtTime(openRec.in));
 }
 
 async function clockOut() {
-  if (!openRec) { alert('还未开工！'); return; }
+  if (!openRec) { alert('還未開工！'); return; }
   const v = parseFloat(document.getElementById('moneyInput').value);
-  if (isNaN(v) || v < 0) { alert('请输入今日累计赚了多少钱！'); return; }
+  if (isNaN(v) || v < 0) { alert('請輸入今日累計賺了多少錢！'); return; }
   openRec.out = Date.now();
   openRec.money = Math.round(v * 10) / 10;
   records.push(openRec);
@@ -368,22 +368,22 @@ async function clockOut() {
   saveLocal(); refresh();
   if (cfg) {
     const ok = await cloudSave();
-    if (ok) alert('✅ 收工打卡成功！已同步到云端\n今日累计赚了 HK$' + v);
-    else alert('✅ 收工打卡成功！（云端同步失败，已保留在本机）\n今日累计赚了 HK$' + v);
-  } else alert('✅ 收工打卡成功！今日累计赚了 HK$' + v);
+    if (ok) alert('✅ 收工打卡成功！已同步到雲端\n今日累計賺了 HK$' + v);
+    else alert('✅ 收工打卡成功！（雲端同步失敗，已保留在本機）\n今日累計賺了 HK$' + v);
+  } else alert('✅ 收工打卡成功！今日累計賺了 HK$' + v);
 }
 
 async function delRec(i) {
-  if (!confirm('确定删除这条记录？')) return;
+  if (!confirm('確定刪除這條記錄？')) return;
   const id = records[i].id;
   records.splice(i, 1);
   if (!deletedIds.includes(id)) deletedIds.push(id);
   saveLocal(); refresh();
-  if (cfg) { const ok = await cloudSave(); if (ok) msg('🗑 已删除并同步到云端', 'ok'); else msg('🗑 已删除（云端同步失败）', 'err'); }
-  else msg('🗑 已删除', 'ok');
+  if (cfg) { const ok = await cloudSave(); if (ok) msg('🗑 已刪除並同步到雲端', 'ok'); else msg('🗑 已刪除（雲端同步失敗）', 'err'); }
+  else msg('🗑 已刪除', 'ok');
 }
 
-/* ---------- 导出 ---------- */
+/* ---------- 導出 ---------- */
 function download(name, content, mime) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([content], { type: mime }));
@@ -391,17 +391,17 @@ function download(name, content, mime) {
   URL.revokeObjectURL(a.href);
 }
 function exportCSV() {
-  if (!records.length && !bonuses.length) { alert('还没有记录！'); return; }
+  if (!records.length && !bonuses.length) { alert('還沒有記錄！'); return; }
   const incMap = dailyIncomeMap();
-  let csv = '\ufeff日期,开工时间,收工时间,工作时数,当日总收入HK$,备注\r\n';
+  let csv = '\ufeff日期,開工時間,收工時間,工作時數,當日總收入HK$,備註\r\n';
   records.forEach(r => {
     const lastIds = getLastRecordIdPerDay();
     const isLastOfDay = lastIds[r.date] === r.id;
-    const note = isLastOfDay ? '当日最后收工' : '';
+    const note = isLastOfDay ? '當日最後收工' : '';
     csv += [r.date, fmtTime(r.in), r.out ? fmtTime(r.out) : '', r.out ? ((r.out-r.in)/3600000).toFixed(2) : '', r.money, note].join(',') + '\r\n';
   });
   if (bonuses.length) {
-    csv += '\r\n奖赏记录\r\n日期,金额\r\n';
+    csv += '\r\n獎賞記錄\r\n日期,金額\r\n';
     bonuses.forEach(b => {
       csv += [b.date, b.amount].join(',') + '\r\n';
     });
@@ -409,11 +409,11 @@ function exportCSV() {
   download('keeta_' + todayStr().replace(/-/g,'') + '.csv', csv, 'text/csv;charset=utf-8');
 }
 function exportJSON() {
-  if (!records.length && !bonuses.length) { alert('还没有记录！'); return; }
+  if (!records.length && !bonuses.length) { alert('還沒有記錄！'); return; }
   download('keeta_' + todayStr().replace(/-/g,'') + '.json', JSON.stringify({ records, bonuses }, null, 2), 'application/json');
 }
 
-/* ---------- 显示 ---------- */
+/* ---------- 顯示 ---------- */
 function switchTab(v, el) {
   view = v;
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -422,10 +422,10 @@ function switchTab(v, el) {
 }
 function renderRecords() {
   const box = document.getElementById('recordBox');
-  if (!records.length && !bonuses.length) { box.innerHTML = '<div class="empty">还没有记录，快开工打卡吧！</div>'; return; }
+  if (!records.length && !bonuses.length) { box.innerHTML = '<div class="empty">還沒有記錄，快開工打卡吧！</div>'; return; }
   const incMap = dailyIncomeMap();
   const lastIds = getLastRecordIdPerDay();
-  let html = '<table><tr><th>日期</th>' + (view==='day'?'<th>开工</th><th>收工</th><th>时数</th>':'') + '<th>收入</th><th></th></tr>';
+  let html = '<table><tr><th>日期</th>' + (view==='day'?'<th>開工</th><th>收工</th><th>時數</th>':'') + '<th>收入</th><th></th></tr>';
   if (view === 'day') {
     const shownBonusDates = new Set();
     [...records].reverse().forEach(r => {
@@ -494,11 +494,11 @@ function refresh() {
   const btnOut = document.getElementById('btnOut');
   if (openRec) {
     st.className = 'status on';
-    st.innerHTML = '✅ 开工中<small>' + openRec.date + ' ' + fmtTime(openRec.in) + ' 开工</small>';
+    st.innerHTML = '✅ 開工中<small>' + openRec.date + ' ' + fmtTime(openRec.in) + ' 開工</small>';
     btnIn.disabled = true; btnOut.disabled = false;
   } else {
     st.className = 'status off';
-    st.innerHTML = '🔴 未开工<small></small>';
+    st.innerHTML = '🔴 未開工<small></small>';
     btnIn.disabled = false; btnOut.disabled = true;
   }
   const hours = records.reduce((s,r) => s + (r.out ? (r.out - r.in) : 0), 0) / 3600000;
@@ -522,7 +522,7 @@ function refresh() {
   renderRecords();
 }
 
-/* ---------- 背景自动同步 ---------- */
+/* ---------- 背景自動同步 ---------- */
 setInterval(() => { if (cfg && !syncing && !openRec) cloudSave(); }, 60000);
 if (document.visibilityState !== undefined) {
   document.addEventListener('visibilitychange', () => {
@@ -530,7 +530,7 @@ if (document.visibilityState !== undefined) {
   });
 }
 
-/* ---------- 启动 ---------- */
+/* ---------- 啟動 ---------- */
 if (cfg) {
   document.getElementById('cfgUser').value = cfg.user;
   document.getElementById('cfgRepo').value = cfg.repo;
