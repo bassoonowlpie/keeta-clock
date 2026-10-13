@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Keeta步兵打卡器</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; font-family:"PingFang HK","Microsoft JhengHei",sans-serif; }
@@ -95,6 +98,8 @@
     <div class="stat"><div class="v" id="stHours">0小時</div><div class="l">⏱ 累計時數</div></div>
     <div class="stat"><div class="v" id="stWeek">$0</div><div class="l">🗓 本星期</div></div>
     <div class="stat"><div class="v" id="stMonth">$0</div><div class="l">🗓 本月份</div></div>
+    <div class="stat"><div class="v" id="stBonus">$0</div><div class="l">🎁 累計獎賞</div></div>
+    <div class="stat"><div class="v" id="stWeekBonus">$0</div><div class="l">🎁 本星期獎賞</div></div>
   </div>
 </div>
 
@@ -217,6 +222,9 @@ function getLastRecordIdPerDay() {
   const map = {};
   records.forEach(r => { if (r.out) map[r.date] = r.id; });
   return map;
+}
+function sumBonuses(filterFn) {
+  return bonuses.reduce((s, b) => { if (!filterFn || filterFn(b.date)) return s + b.amount; return s; }, 0);
 }
 
 /* ---------- 獎賞 ---------- */
@@ -497,12 +505,16 @@ function refresh() {
   const totalDays = countWorkDays();
   const weekIncome = sumDailyIncome(d => new Date(d) >= weekStart);
   const monthIncome = sumDailyIncome(d => d.startsWith(monthStr));
+  const totalBonus = sumBonuses();
+  const weekBonus = sumBonuses(d => new Date(d) >= weekStart);
   document.getElementById('stTotal').textContent = '$' + total.toFixed(1);
   document.getElementById('stDays').textContent = totalDays + '日';
   document.getElementById('stAvg').textContent = '$' + (totalDays ? (total/totalDays).toFixed(1) : 0);
   document.getElementById('stHours').textContent = hours.toFixed(1) + '小時';
   document.getElementById('stWeek').textContent = '$' + weekIncome.toFixed(1);
   document.getElementById('stMonth').textContent = '$' + monthIncome.toFixed(1);
+  document.getElementById('stBonus').textContent = '$' + totalBonus.toFixed(1);
+  document.getElementById('stWeekBonus').textContent = '$' + weekBonus.toFixed(1);
   renderRecords();
 }
 
