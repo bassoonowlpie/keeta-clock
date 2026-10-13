@@ -240,8 +240,9 @@ async function addBonus() {
 async function delBonus(id) {
   if (!confirm('確定刪除呢個獎賞？')) return;
   bonuses = bonuses.filter(b => b.id !== id);
+  if (!deletedIds.includes(id)) deletedIds.push(id);
   saveLocal(); refresh();
-  if (cfg) { const ok = await cloudSave(); if (ok) msg('🗑 已刪除獎賞並同步', 'ok'); else msg('🗑 已刪除獎賞（雲端同步失敗）', 'err'); }
+  if (cfg) { const ok = await cloudSave(); if (ok) msg('🗑 已刪除獎賞並同步到雲端', 'ok'); else msg('🗑 已刪除獎賞（雲端同步失敗）', 'err'); }
   else msg('🗑 已刪除獎賞', 'ok');
 }
 
@@ -261,8 +262,11 @@ function mergeRecords(localRecs, cloudRecs) {
 }
 function mergeBonuses(localBonuses, cloudBonuses) {
   const map = {};
-  (localBonuses || []).forEach(b => { map[b.id] = b; });
-  (cloudBonuses || []).forEach(b => { if (!map[b.id]) map[b.id] = b; });
+  (localBonuses || []).forEach(b => { if (!deletedIds.includes(b.id)) map[b.id] = b; });
+  (cloudBonuses || []).forEach(b => {
+    if (deletedIds.includes(b.id)) return;
+    if (!map[b.id]) map[b.id] = b;
+  });
   return Object.values(map);
 }
 
