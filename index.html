@@ -37,12 +37,6 @@
   .tabs { display:flex; gap:8px; margin-bottom:12px; }
   .tab { flex:1; padding:10px; text-align:center; border-radius:10px; background:#eee; cursor:pointer; font-size:14px; font-weight:600; color:#777; border:none; }
   .tab.active { background:#2c3e50; color:#fff; }
-  table { width:100%; border-collapse:collapse; font-size:13px; }
-  th, td { padding:8px 4px; text-align:center; border-bottom:1px solid #eee; }
-  th { color:#888; font-weight:600; font-size:12px; }
-  td.money { color:#1e8449; font-weight:700; }
-  td.money-sub { color:#bbb; font-size:11px; }
-  .del { color:#ccc; cursor:pointer; font-size:15px; }
   .empty { text-align:center; color:#aaa; padding:20px; font-size:14px; }
   .footer { text-align:center; color:#bbb; font-size:12px; margin-top:16px; }
   .cfg-toggle { text-align:center; color:#3498db; font-size:14px; cursor:pointer; padding:6px; }
@@ -57,12 +51,49 @@
   details summary { cursor:pointer; }
   .last-sync { text-align:center; font-size:11px; color:#bbb; margin-top:4px; }
   .tip { font-size:11px; color:#999; text-align:center; margin-top:4px; }
-  .cal-btn { display:inline-block; background:#e67e22; color:#fff; border-radius:6px; padding:3px 8px; font-size:12px; text-decoration:none; margin-left:4px; }
-  .cal-btn:active { background:#d35400; }
-  .action-btns { white-space:nowrap; }
-  .row-highlight { background:#e8f8ef !important; }
-  .bonus-row { background:#fff8e1 !important; }
-  .bonus-row td.money { color:#e67e22; }
+
+  /* ---------- NEW DAY CARD UI ---------- */
+  .day-card { background:#fff; border-radius:14px; margin-bottom:12px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+  .day-card.today { border:2px solid #27ae60; }
+  .day-header { display:flex; justify-content:space-between; align-items:center; padding:14px 16px; background:#f8f9fa; border-bottom:1px solid #eee; }
+  .day-date { font-size:16px; font-weight:700; color:#222; }
+  .day-date .wday { font-size:12px; font-weight:400; color:#888; margin-left:6px; }
+  .day-total { font-size:18px; font-weight:800; color:#1e8449; }
+  .day-body { padding:12px 16px; }
+  .session-row { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px dashed #eee; font-size:15px; }
+  .session-row:last-child { border-bottom:none; }
+  .session-time { display:flex; align-items:center; gap:8px; flex:1; }
+  .session-time .dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .session-time .dot.in { background:#27ae60; }
+  .session-time .dot.out { background:#e74c3c; }
+  .session-time .time-str { font-weight:600; color:#333; font-size:16px; }
+  .session-time .arrow { color:#bbb; font-size:14px; }
+  .session-time .dur { color:#888; font-size:13px; }
+  .session-money { font-weight:700; color:#1e8449; font-size:15px; }
+  .bonus-row2 { display:flex; align-items:center; gap:8px; padding:10px 0; background:#fff8e1; margin:0 -16px; padding-left:16px; padding-right:16px; border-top:1px dashed #f0e0b0; }
+  .bonus-row2 .gift { font-size:16px; }
+  .bonus-row2 .bonus-label { font-size:13px; color:#e67e22; }
+  .bonus-row2 .bonus-amt { font-weight:700; color:#e67e22; font-size:15px; margin-left:auto; }
+  .day-actions { display:flex; gap:8px; padding:10px 16px 14px; }
+  .day-actions .act-btn { flex:1; padding:10px; border-radius:10px; border:none; font-size:14px; font-weight:600; cursor:pointer; text-align:center; text-decoration:none; display:inline-block; }
+  .day-actions .act-btn.del { background:#ffecec; color:#c0392b; }
+  .day-actions .act-btn.cal { background:#fff3e0; color:#e67e22; }
+  .day-actions .act-btn.del-bonus { background:#fff8e1; color:#e67e22; font-size:13px; }
+
+  /* week/month table */
+  .summary-table { width:100%; border-collapse:collapse; font-size:14px; }
+  .summary-table th, .summary-table td { padding:12px 8px; text-align:center; border-bottom:1px solid #eee; }
+  .summary-table th { color:#888; font-weight:600; font-size:13px; background:#f8f9fa; }
+  .summary-table td.money { color:#1e8449; font-weight:700; font-size:15px; }
+
+  /* orphan bonus cards */
+  .bonus-card { background:#fff8e1; border-radius:14px; padding:14px 16px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+  .bonus-card .gift { font-size:20px; }
+  .bonus-card .bc-info { flex:1; margin-left:10px; }
+  .bonus-card .bc-date { font-size:14px; font-weight:600; color:#555; }
+  .bonus-card .bc-label { font-size:12px; color:#e67e22; }
+  .bonus-card .bc-amt { font-size:18px; font-weight:800; color:#e67e22; }
+  .bonus-card .bc-del { background:#fff; border:none; border-radius:8px; padding:6px 12px; font-size:14px; cursor:pointer; color:#c0392b; margin-left:8px; }
 </style>
 </head>
 <body>
@@ -414,6 +445,10 @@ function exportJSON() {
 }
 
 /* ---------- 顯示 ---------- */
+function wday(d) {
+  const arr = ['日','一','二','三','四','五','六'];
+  return arr[new Date(d).getDay()];
+}
 function switchTab(v, el) {
   view = v;
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -423,35 +458,91 @@ function switchTab(v, el) {
 function renderRecords() {
   const box = document.getElementById('recordBox');
   if (!records.length && !bonuses.length) { box.innerHTML = '<div class="empty">還沒有記錄，快開工打卡吧！</div>'; return; }
-  const incMap = dailyIncomeMap();
-  const lastIds = getLastRecordIdPerDay();
-  let html = '<table><tr><th>日期</th>' + (view==='day'?'<th>開工</th><th>收工</th><th>時數</th>':'') + '<th>收入</th><th></th></tr>';
+
   if (view === 'day') {
-    const shownBonusDates = new Set();
-    [...records].reverse().forEach(r => {
-      const idx = records.indexOf(r);
-      const isLastOfDay = lastIds[r.date] === r.id;
-      let moneyDisplay = r.money != null ? '$' + r.money.toFixed(1) : '-';
-      const calBtn = r.out ? '<a class="cal-btn" href="' + makeCalLink(r.in, r.out, r.money) + '" target="_blank">📅</a>' : '';
-      const rowClass = isLastOfDay ? 'row-highlight' : '';
-      html += '<tr class="' + rowClass + '"><td>' + r.date + '</td><td>' + fmtTime(r.in) + '</td><td>' + (r.out?fmtTime(r.out):'-') + '</td><td>' + (r.out?fmtDur(r.out-r.in):'-') + '</td><td class="money">' + moneyDisplay + '</td><td class="action-btns">' + calBtn + '<span class="del" onclick="delRec(' + idx + ')">✕</span></td></tr>';
-      // Show bonus rows after the last record of each day
-      if (isLastOfDay && !shownBonusDates.has(r.date)) {
-        shownBonusDates.add(r.date);
-        const dayBonuses = bonuses.filter(b => b.date === r.date);
-        dayBonuses.forEach(b => {
-          html += '<tr class="bonus-row"><td>' + r.date + '</td><td>-</td><td>-</td><td>-</td><td class="money">🎁 $' + b.amount.toFixed(1) + '</td><td class="action-btns"><span class="del" onclick="delBonus(\'' + b.id + '\')">✕</span></td></tr>';
-        });
-      }
+    // Group records by date
+    const dayMap = {};
+    records.forEach((r, idx) => {
+      if (!dayMap[r.date]) dayMap[r.date] = { records: [], indices: [] };
+      dayMap[r.date].records.push(r);
+      dayMap[r.date].indices.push(idx);
     });
-    // Also show bonus dates that have no work records
+
+    // Sort dates descending
+    const dates = Object.keys(dayMap).sort().reverse();
+    const today = todayStr();
+    let html = '';
+
+    dates.forEach(date => {
+      const day = dayMap[date];
+      const dayRecs = day.records;
+      const dayIdxs = day.indices;
+      const lastRec = dayRecs[dayRecs.length - 1];
+      const dayBonusAmt = getDayBonus(date);
+      const isToday = date === today;
+
+      let sessionsHtml = '';
+      dayRecs.forEach((r, i) => {
+        const idx = dayIdxs[i];
+        const dur = r.out ? fmtDur(r.out - r.in) : '-';
+        sessionsHtml += '<div class="session-row">' +
+          '<div class="session-time">' +
+            '<span class="dot in"></span>' +
+            '<span class="time-str">' + fmtTime(r.in) + '</span>' +
+            '<span class="arrow">→</span>' +
+            '<span class="time-str">' + (r.out ? fmtTime(r.out) : '--:--') + '</span>' +
+            '<span class="dur">(' + dur + ')</span>' +
+          '</div>' +
+          (r.money != null ? '<span class="session-money">$' + r.money.toFixed(1) + '</span>' : '') +
+        '</div>';
+      });
+
+      let bonusHtml = '';
+      const dayBonuses = bonuses.filter(b => b.date === date);
+      dayBonuses.forEach(b => {
+        bonusHtml += '<div class="bonus-row2">' +
+          '<span class="gift">🎁</span>' +
+          '<span class="bonus-label">獎賞</span>' +
+          '<span class="bonus-amt">$' + b.amount.toFixed(1) + '</span>' +
+        '</div>';
+      });
+
+      const totalMoney = (lastRec.money || 0) + dayBonusAmt;
+
+      html += '<div class="day-card ' + (isToday ? 'today' : '') + '">' +
+        '<div class="day-header">' +
+          '<div class="day-date">' + date + '<span class="wday">星期' + wday(date) + '</span></div>' +
+          '<div class="day-total">$' + totalMoney.toFixed(1) + '</div>' +
+        '</div>' +
+        '<div class="day-body">' + sessionsHtml + '</div>' +
+        (bonusHtml || '') +
+        '<div class="day-actions">' +
+          (lastRec.out ? '<a class="act-btn cal" href="' + makeCalLink(lastRec.in, lastRec.out, lastRec.money) + '" target="_blank">📅 加入行事曆</a>' : '') +
+          '<button class="act-btn del" onclick="if(confirm(\'確定刪除這天的所有記錄？\')){[' + dayIdxs.join(',') + '].reverse().forEach(i=>delRec(i))}">🗑 刪除</button>' +
+        '</div>' +
+      '</div>';
+    });
+
+    // Orphan bonuses (dates with bonuses but no work records)
+    const workDates = new Set(dates);
     bonuses.forEach(b => {
-      if (!shownBonusDates.has(b.date)) {
-        shownBonusDates.add(b.date);
-        html += '<tr class="bonus-row"><td>' + b.date + '</td><td>-</td><td>-</td><td>-</td><td class="money">🎁 $' + b.amount.toFixed(1) + '</td><td class="action-btns"><span class="del" onclick="delBonus(\'' + b.id + '\')">✕</span></td></tr>';
+      if (!workDates.has(b.date)) {
+        html += '<div class="bonus-card">' +
+          '<span class="gift">🎁</span>' +
+          '<div class="bc-info">' +
+            '<div class="bc-date">' + b.date + ' 星期' + wday(b.date) + '</div>' +
+            '<div class="bc-label">獎賞</div>' +
+          '</div>' +
+          '<div class="bc-amt">$' + b.amount.toFixed(1) + '</div>' +
+          '<button class="bc-del" onclick="delBonus(\'' + b.id + '\')">✕</button>' +
+        '</div>';
       }
     });
+
+    box.innerHTML = html;
+
   } else {
+    // week/month summary table
     const groups = {};
     records.forEach(r => {
       const d = new Date(r.in);
@@ -467,8 +558,8 @@ function renderRecords() {
       groups[k].days.add(r.date);
       if (r.out) groups[k].hours += (r.out - r.in) / 3600000;
     });
-    const dayMap = dailyIncomeMap();
-    Object.keys(dayMap).forEach(date => {
+    const dayMap2 = dailyIncomeMap();
+    Object.keys(dayMap2).forEach(date => {
       const d = new Date(date);
       let k;
       if (view === 'week') {
@@ -478,15 +569,16 @@ function renderRecords() {
       } else {
         k = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
       }
-      if (groups[k]) groups[k].money += dayMap[date];
+      if (groups[k]) groups[k].money += dayMap2[date];
     });
+    let html = '<table class="summary-table"><tr><th>期間</th><th>日數</th><th>時數</th><th>收入</th></tr>';
     Object.keys(groups).sort().reverse().forEach(k => {
       const g = groups[k];
-      html += '<tr><td>' + k + '</td><td>' + g.days.size + '日</td><td>' + g.hours.toFixed(1) + 'h</td><td class="money">$' + g.money.toFixed(1) + '</td><td></td></tr>';
+      html += '<tr><td>' + k + '</td><td>' + g.days.size + '日</td><td>' + g.hours.toFixed(1) + 'h</td><td class="money">$' + g.money.toFixed(1) + '</td></tr>';
     });
+    html += '</table>';
+    box.innerHTML = html;
   }
-  html += '</table>';
-  box.innerHTML = html;
 }
 function refresh() {
   const st = document.getElementById('statusBox');
