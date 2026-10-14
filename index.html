@@ -71,6 +71,7 @@
   .session-time .dur { color:#888; font-size:13px; }
   .session-money { font-weight:700; color:#1e8449; font-size:15px; }
   .session-cal { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:8px; background:#fff3e0; color:#e67e22; text-decoration:none; font-size:14px; flex-shrink:0; }
+  .session-del { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:8px; background:#ffecec; color:#c0392b; border:none; font-size:14px; flex-shrink:0; cursor:pointer; }
   .bonus-row2 { display:flex; align-items:center; gap:8px; padding:10px 0; background:#fff8e1; margin:0 -16px; padding-left:16px; padding-right:16px; border-top:1px dashed #f0e0b0; }
   .bonus-row2 .gift { font-size:16px; }
   .bonus-row2 .bonus-label { font-size:13px; color:#e67e22; }
@@ -502,6 +503,7 @@ function buildDayCard(date, dayRecs, dayIdxs, isSearchResult) {
     const idx = dayIdxs[i];
     const dur = r.out ? fmtDur(r.out - r.in) : '-';
     const calLink = r.out ? '<a class="session-cal" href="' + makeCalLink(r.in, r.out, r.money) + '" target="_blank" title="加入行事曆">📅</a>' : '';
+    const delBtn = '<button class="session-del" onclick="delRec(' + idx + ')" title="刪除">✕</button>';
     sessionsHtml += '<div class="session-row">' +
       '<div class="session-time">' +
         '<span class="dot in"></span>' +
@@ -512,6 +514,7 @@ function buildDayCard(date, dayRecs, dayIdxs, isSearchResult) {
       '</div>' +
       (r.money != null ? '<span class="session-money">$' + r.money.toFixed(1) + '</span>' : '') +
       calLink +
+      delBtn +
     '</div>';
   });
 
@@ -535,7 +538,7 @@ function buildDayCard(date, dayRecs, dayIdxs, isSearchResult) {
     '<div class="day-body">' + sessionsHtml + '</div>' +
     (bonusHtml || '') +
     '<div class="day-actions">' +
-      '<button class="act-btn del" onclick="if(confirm(\'確定刪除這天的所有記錄？\')){[' + dayIdxs.join(',') + '].reverse().forEach(i=>delRec(i))}">🗑 刪除</button>' +
+      '<button class="act-btn del" onclick="if(confirm(\'確定刪除這天的所有記錄？\')){[' + dayIdxs.join(',') + '].reverse().forEach(i=>delRec(i))}">🗑 刪除當日全部</button>' +
     '</div>' +
   '</div>';
 }
