@@ -94,6 +94,15 @@
   .bonus-card .bc-label { font-size:12px; color:#e67e22; }
   .bonus-card .bc-amt { font-size:18px; font-weight:800; color:#e67e22; }
   .bonus-card .bc-del { background:#fff; border:none; border-radius:8px; padding:6px 12px; font-size:14px; cursor:pointer; color:#c0392b; margin-left:8px; }
+
+  /* search & show more */
+  .search-bar { display:flex; gap:8px; margin-bottom:12px; }
+  .search-bar input { flex:1; padding:10px 14px; font-size:15px; border:2px solid #ddd; border-radius:10px; }
+  .search-bar input:focus { border-color:#2980b9; outline:none; }
+  .search-bar button { padding:10px 16px; border:none; border-radius:10px; background:#2980b9; color:#fff; font-size:14px; font-weight:600; cursor:pointer; }
+  .search-bar button.clear { background:#7f8c8d; }
+  .show-more-btn { display:block; width:100%; padding:14px; text-align:center; background:#f0f2f5; border:none; border-radius:12px; font-size:15px; font-weight:600; color:#555; cursor:pointer; margin-top:8px; }
+  .show-more-btn:active { background:#e4e6e9; }
 </style>
 </head>
 <body>
@@ -147,6 +156,11 @@
     <button class="tab" onclick="switchTab('week',this)">星期</button>
     <button class="tab" onclick="switchTab('month',this)">月份</button>
   </div>
+  <div id="searchBar" class="search-bar" style="display:none;">
+    <input id="searchDate" type="date" placeholder="選擇日期">
+    <button onclick="searchDay()">🔍 搜尋</button>
+    <button class="clear" onclick="clearSearch()">清除</button>
+  </div>
   <div id="recordBox"></div>
 </div>
 
@@ -179,6 +193,8 @@ let cfg = JSON.parse(localStorage.getItem(CFG) || 'null');
 let view = 'day';
 let cloudSha = null;
 let syncing = false;
+let daysToShow = 5;
+let searchDateVal = '';
 
 function saveLocal() {
   localStorage.setItem(KEY, JSON.stringify(records));
@@ -453,7 +469,73 @@ function switchTab(v, el) {
   view = v;
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
+  const searchBar = document.getElementById('searchBar');
+  if (view === 'day') searchBar.style.display = 'flex';
+  else searchBar.style.display = 'none';
   renderRecords();
+}
+function searchDay() {
+  const val = document.getElementById('searchDate').value;
+  searchDateVal = val;
+  daysToShow = 5;
+  renderRecords();
+}
+function clearSearch() {
+  document.getElementById('searchDate').value = '';
+  searchDateVal = '';
+  daysToShow = 5;
+  renderRecords();
+}
+function showMore() {
+  daysToShow += 5;
+  renderRecords();
+}
+function buildDayCard(date, dayRecs, dayIdxs, isSearchResult) {
+  const lastRec = dayRecs[dayRecs.length - 1];
+  const dayBonusAmt = getDayBonus(date);
+  const today = todayStr();
+  const isToday = date === today;
+
+  let sessionsHtml = '';
+  dayRecs.forEach((r, i) => {
+    const idx = dayIdxs[i];
+    const dur = r.out ? fmtDur(r.out - r.in) : '-';
+    sessionsHtml += '<div class="session-row">' +
+      '<div class="session-time">' +
+        '<span class="dot in"></span>' +
+        '<span class="time-str">' + fmtTime(r.in) + '</span>' +
+        '<span class="arrow">→</span>' +
+        '<span class="time-str">' + (r.out ? fmtTime(r.out) : '--:--') + '</span>' +
+        '<span class="dur">(' + dur + ')</span>' +
+      '</div>' +
+      (r.money != null ? '<span class="session-money">$' + r.money.toFixed(1) + '</span>' : '') +
+    '</div>';
+  });
+
+  let bonusHtml = '';
+  const dayBonuses = bonuses.filter(b => b.date === date);
+  dayBonuses.forEach(b => {
+    bonusHtml += '<div class="bonus-row2">' +
+      '<span class="gift">🎁</span>' +
+      '<span class="bonus-label">獎賞</span>' +
+      '<span class="bonus-amt">$' + b.amount.toFixed(1) + '</span>' +
+    '</div>';
+  });
+
+  const totalMoney = (lastRec.money || 0) + dayBonusAmt;
+
+  return '<div class="day-card ' + (isToday ? 'today' : '') + '">' +
+    '<div class="day-header">' +
+      '<div class="day-date">' + date + '<span class="wday">星期' + wday(date) + '</span></div>' +
+      '<div class="day-total">$' + totalMoney.toFixed(1) + '</div>' +
+    '</div>' +
+    '<div class="day-body">' + sessionsHtml + '</div>' +
+    (bonusHtml || '') +
+    '<div class="day-actions">' +
+      (lastRec.out ? '<a class="act-btn cal" href="' + makeCalLink(lastRec.in, lastRec.out, lastRec.money) + '" target="_blank">📅 加入行事曆</a>' : '') +
+      '<button class="act-btn del" onclick="if(confirm(\'確定刪除這天的所有記錄？\')){[' + dayIdxs.join(',') + '].reverse().forEach(i=>delRec(i))}">🗑 刪除</button>' +
+    '</div>' +
+  '</div>';
 }
 function renderRecords() {
   const box = document.getElementById('recordBox');
@@ -469,64 +551,52 @@ function renderRecords() {
     });
 
     // Sort dates descending
-    const dates = Object.keys(dayMap).sort().reverse();
+    const allDates = Object.keys(dayMap).sort().reverse();
     const today = todayStr();
     let html = '';
+    let displayDates = [];
 
-    dates.forEach(date => {
+    if (searchDateVal) {
+      // Search mode: only show matching date
+      if (dayMap[searchDateVal]) {
+        displayDates = [searchDateVal];
+      } else {
+        box.innerHTML = '<div class="empty">🔍 找不到 ' + searchDateVal + ' 的記錄</div>';
+        return;
+      }
+    } else {
+      // Normal mode: limit to daysToShow
+      displayDates = allDates.slice(0, daysToShow);
+    }
+
+    displayDates.forEach(date => {
       const day = dayMap[date];
-      const dayRecs = day.records;
-      const dayIdxs = day.indices;
-      const lastRec = dayRecs[dayRecs.length - 1];
-      const dayBonusAmt = getDayBonus(date);
-      const isToday = date === today;
-
-      let sessionsHtml = '';
-      dayRecs.forEach((r, i) => {
-        const idx = dayIdxs[i];
-        const dur = r.out ? fmtDur(r.out - r.in) : '-';
-        sessionsHtml += '<div class="session-row">' +
-          '<div class="session-time">' +
-            '<span class="dot in"></span>' +
-            '<span class="time-str">' + fmtTime(r.in) + '</span>' +
-            '<span class="arrow">→</span>' +
-            '<span class="time-str">' + (r.out ? fmtTime(r.out) : '--:--') + '</span>' +
-            '<span class="dur">(' + dur + ')</span>' +
-          '</div>' +
-          (r.money != null ? '<span class="session-money">$' + r.money.toFixed(1) + '</span>' : '') +
-        '</div>';
-      });
-
-      let bonusHtml = '';
-      const dayBonuses = bonuses.filter(b => b.date === date);
-      dayBonuses.forEach(b => {
-        bonusHtml += '<div class="bonus-row2">' +
-          '<span class="gift">🎁</span>' +
-          '<span class="bonus-label">獎賞</span>' +
-          '<span class="bonus-amt">$' + b.amount.toFixed(1) + '</span>' +
-        '</div>';
-      });
-
-      const totalMoney = (lastRec.money || 0) + dayBonusAmt;
-
-      html += '<div class="day-card ' + (isToday ? 'today' : '') + '">' +
-        '<div class="day-header">' +
-          '<div class="day-date">' + date + '<span class="wday">星期' + wday(date) + '</span></div>' +
-          '<div class="day-total">$' + totalMoney.toFixed(1) + '</div>' +
-        '</div>' +
-        '<div class="day-body">' + sessionsHtml + '</div>' +
-        (bonusHtml || '') +
-        '<div class="day-actions">' +
-          (lastRec.out ? '<a class="act-btn cal" href="' + makeCalLink(lastRec.in, lastRec.out, lastRec.money) + '" target="_blank">📅 加入行事曆</a>' : '') +
-          '<button class="act-btn del" onclick="if(confirm(\'確定刪除這天的所有記錄？\')){[' + dayIdxs.join(',') + '].reverse().forEach(i=>delRec(i))}">🗑 刪除</button>' +
-        '</div>' +
-      '</div>';
+      html += buildDayCard(date, day.records, day.indices, !!searchDateVal);
     });
 
     // Orphan bonuses (dates with bonuses but no work records)
-    const workDates = new Set(dates);
-    bonuses.forEach(b => {
-      if (!workDates.has(b.date)) {
+    if (!searchDateVal) {
+      const workDates = new Set(allDates);
+      const orphanBonuses = bonuses.filter(b => !workDates.has(b.date));
+      // Only show orphan bonuses within the date range we're displaying
+      const shownDates = new Set(displayDates);
+      orphanBonuses.forEach(b => {
+        if (shownDates.has(b.date) || allDates.indexOf(b.date) < daysToShow) {
+          html += '<div class="bonus-card">' +
+            '<span class="gift">🎁</span>' +
+            '<div class="bc-info">' +
+              '<div class="bc-date">' + b.date + ' 星期' + wday(b.date) + '</div>' +
+              '<div class="bc-label">獎賞</div>' +
+            '</div>' +
+            '<div class="bc-amt">$' + b.amount.toFixed(1) + '</div>' +
+            '<button class="bc-del" onclick="delBonus(\'' + b.id + '\')">✕</button>' +
+          '</div>';
+        }
+      });
+    } else {
+      // Search mode: also show matching orphan bonuses
+      const orphanMatch = bonuses.filter(b => b.date === searchDateVal && !dayMap[searchDateVal]);
+      orphanMatch.forEach(b => {
         html += '<div class="bonus-card">' +
           '<span class="gift">🎁</span>' +
           '<div class="bc-info">' +
@@ -536,8 +606,14 @@ function renderRecords() {
           '<div class="bc-amt">$' + b.amount.toFixed(1) + '</div>' +
           '<button class="bc-del" onclick="delBonus(\'' + b.id + '\')">✕</button>' +
         '</div>';
-      }
-    });
+      });
+    }
+
+    // Show more button
+    if (!searchDateVal && allDates.length > daysToShow) {
+      const remaining = allDates.length - daysToShow;
+      html += '<button class="show-more-btn" onclick="showMore()">🔽 顯示更多 (' + remaining + ' 天)</button>';
+    }
 
     box.innerHTML = html;
 
