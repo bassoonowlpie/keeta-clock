@@ -70,7 +70,7 @@
   .session-time .arrow { color:#bbb; font-size:14px; }
   .session-time .dur { color:#888; font-size:13px; }
   .session-money { font-weight:700; color:#1e8449; font-size:15px; }
-  .session-cal { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:8px; background:#fff3e0; color:#e67e22; text-decoration:none; font-size:14px; flex-shrink:0; cursor:pointer; }
+  .session-cal { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:8px; background:#fff3e0; color:#e67e22; text-decoration:none; font-size:14px; flex-shrink:0; }
   .session-del { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:8px; background:#ffecec; color:#c0392b; border:none; font-size:14px; flex-shrink:0; cursor:pointer; }
   .bonus-row2 { display:flex; align-items:center; gap:8px; padding:10px 0; background:#fff8e1; margin:0 -16px; padding-left:16px; padding-right:16px; border-top:1px dashed #f0e0b0; }
   .bonus-row2 .gift { font-size:16px; }
@@ -230,27 +230,16 @@ function setLastSync() {
   el.textContent = '最後同步：' + fmtTime(Date.now());
 }
 
-/* ---------- Calendar ICS ---------- */
+/* ---------- Google Calendar ---------- */
 function toCalDate(ts) {
   const d = new Date(ts);
   return d.toISOString().replace(/[-:]/g,'').split('.')[0] + 'Z';
 }
 function makeCalLink(startTs, endTs, money) {
-  const start = toCalDate(startTs);
-  const end = toCalDate(endTs);
-  const ics = [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//Keeta Clock//EN',
-    'BEGIN:VEVENT',
-    'DTSTART:' + start,
-    'DTEND:' + end,
-    'SUMMARY:Keeta開工',
-    'DESCRIPTION:當日累計收入：HK$' + (money || 0),
-    'END:VEVENT',
-    'END:VCALENDAR'
-  ].join('\r\n');
-  return 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics);
+  const text = 'Keeta開工';
+  const details = '當日累計收入：HK$' + (money || 0);
+  const dates = toCalDate(startTs) + '/' + toCalDate(endTs);
+  return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent(text) + '&details=' + encodeURIComponent(details) + '&dates=' + dates;
 }
 
 /* ---------- 每日收入計算（含獎賞） ---------- */
@@ -513,7 +502,7 @@ function buildDayCard(date, dayRecs, dayIdxs, isSearchResult) {
   dayRecs.forEach((r, i) => {
     const idx = dayIdxs[i];
     const dur = r.out ? fmtDur(r.out - r.in) : '-';
-    const calLink = r.out ? '<a class="session-cal" href="' + makeCalLink(r.in, r.out, r.money) + '" download="keeta.ics" title="加入行事曆">📅</a>' : '';
+    const calLink = r.out ? '<a class="session-cal" href="' + makeCalLink(r.in, r.out, r.money) + '" target="_blank" title="加入行事曆">📅</a>' : '';
     const delBtn = '<button class="session-del" onclick="delRec(' + idx + ')" title="刪除">✕</button>';
     sessionsHtml += '<div class="session-row">' +
       '<div class="session-time">' +
