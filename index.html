@@ -63,20 +63,33 @@
   .day-date .wday { font-size:12px; font-weight:400; color:#888; margin-left:6px; }
   .day-total { font-size:18px; font-weight:800; color:#1e8449; }
   .day-body { padding:12px 16px; }
-  .session-row { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px dashed #eee; font-size:15px; }
+  .session-row { display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; padding:10px 0; border-bottom:1px dashed #eee; font-size:15px; }
   .session-row:last-child { border-bottom:none; }
-  .session-time { display:flex; align-items:center; gap:8px; flex:1; min-width:0; }
+  .session-left { display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; flex:1 1 auto; min-width:0; }
+  .session-time { display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; }
   .session-time .dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
   .session-time .dot.in { background:#27ae60; }
   .session-time .dot.out { background:#e74c3c; }
-  .session-time .time-str { font-weight:600; color:#333; font-size:16px; }
-  .session-time .arrow { color:#bbb; font-size:14px; }
-  .session-time .dur { color:#888; font-size:13px; }
-  .session-money { font-weight:700; color:#1e8449; font-size:15px; }
-  .session-cal { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:8px; background:#fff3e0; color:#e67e22; text-decoration:none; font-size:14px; flex-shrink:0; }
-  .session-del { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:8px; background:#ffecec; color:#c0392b; border:none; font-size:14px; cursor:pointer; flex-shrink:0; }
+  .session-time .time-str { font-weight:600; color:#333; font-size:15px; }
+  .session-time .arrow { color:#bbb; font-size:13px; }
+  .session-time .dur { color:#888; font-size:12px; }
+  .session-note { font-size:11px; color:#666; background:#f4f5f7; padding:3px 8px; border-radius:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100px; flex-shrink:1; }
+  .session-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; margin-left:auto; }
+  .session-money { font-weight:700; color:#1e8449; font-size:15px; min-width:52px; text-align:right; }
+  .session-cal { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:8px; background:#fff3e0; color:#e67e22; text-decoration:none; font-size:13px; flex-shrink:0; }
+  .session-del { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:8px; background:#ffecec; color:#c0392b; border:none; font-size:13px; cursor:pointer; flex-shrink:0; }
   .session-del:active { transform:scale(.9); }
-  .session-note { font-size:12px; color:#666; background:#f4f5f7; padding:4px 8px; border-radius:6px; margin-left:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:120px; }
+  .session-edit { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:8px; background:#e3f2fd; color:#2980b9; border:none; font-size:14px; cursor:pointer; flex-shrink:0; }
+  .session-edit:active { transform:scale(.9); }
+  .edit-modal { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; z-index:100; }
+  .edit-box { background:#fff; border-radius:16px; padding:20px; width:90%; max-width:400px; }
+  .edit-box h3 { margin-bottom:12px; font-size:18px; }
+  .edit-box input { width:100%; padding:12px; font-size:15px; border:2px solid #ddd; border-radius:10px; margin-bottom:10px; }
+  .edit-box .edit-actions { display:flex; gap:10px; margin-top:10px; }
+  .edit-box .edit-actions button { flex:1; padding:12px; border:none; border-radius:10px; font-size:15px; font-weight:600; cursor:pointer; }
+  .edit-box .edit-actions .save { background:#27ae60; color:#fff; }
+  .edit-box .edit-actions .cancel { background:#eee; color:#555; }
+  .session-note { font-size:11px; color:#666; background:#f4f5f7; padding:3px 8px; border-radius:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100px; flex-shrink:1; }
   .note-input { width:100%; padding:12px; font-size:15px; border:2px solid #ddd; border-radius:12px; margin-bottom:10px; }
   .note-input:focus { border-color:#27ae60; outline:none; }
   .last-money-hint { text-align:center; font-size:13px; color:#2980b9; margin-bottom:8px; min-height:18px; font-weight:600; }
@@ -457,6 +470,76 @@ async function delRec(i) {
   else msg('🗑 已刪除', 'ok');
 }
 
+function editRec(i) {
+  const r = records[i];
+  const inDate = new Date(r.in);
+  const outDate = r.out ? new Date(r.out) : null;
+  const inStr = String(inDate.getHours()).padStart(2,'0') + ':' + String(inDate.getMinutes()).padStart(2,'0');
+  const outStr = outDate ? String(outDate.getHours()).padStart(2,'0') + ':' + String(outDate.getMinutes()).padStart(2,'0') : '';
+
+  // Create modal
+  const modal = document.createElement('div');
+  modal.className = 'edit-modal';
+  modal.innerHTML = '<div class="edit-box">' +
+    '<h3>✎ 編輯打卡記錄</h3>' +
+    '<label style="font-size:13px;color:#888;">開工時間</label>' +
+    '<input id="editIn" type="time" value="' + inStr + '">' +
+    '<label style="font-size:13px;color:#888;">收工時間（留空表示未收工）</label>' +
+    '<input id="editOut" type="time" value="' + outStr + '">' +
+    '<label style="font-size:13px;color:#888;">收入金額</label>' +
+    '<input id="editMoney" type="number" inputmode="decimal" min="0" step="0.1" value="' + (r.money != null ? r.money : '') + '">' +
+    '<label style="font-size:13px;color:#888;">備註</label>' +
+    '<input id="editNote" type="text" value="' + (r.note || '') + '">' +
+    '<div class="edit-actions">' +
+      '<button class="save" onclick="saveEdit(' + i + ')">💾 儲存</button>' +
+      '<button class="cancel" onclick="closeEdit()">取消</button>' +
+    '</div>' +
+  '</div>';
+  document.body.appendChild(modal);
+}
+
+function closeEdit() {
+  const modal = document.querySelector('.edit-modal');
+  if (modal) modal.remove();
+}
+
+async function saveEdit(i) {
+  const r = records[i];
+  const inVal = document.getElementById('editIn').value;
+  const outVal = document.getElementById('editOut').value;
+  const moneyVal = document.getElementById('editMoney').value;
+  const noteVal = document.getElementById('editNote').value;
+
+  if (!inVal) { alert('開工時間不能為空！'); return; }
+
+  const [inH, inM] = inVal.split(':').map(Number);
+  const inDate = new Date(r.in);
+  inDate.setHours(inH, inM, 0, 0);
+  r.in = inDate.getTime();
+
+  if (outVal) {
+    const [outH, outM] = outVal.split(':').map(Number);
+    const outDate = new Date(r.out || r.in);
+    outDate.setHours(outH, outM, 0, 0);
+    r.out = outDate.getTime();
+  } else {
+    r.out = null;
+  }
+
+  if (moneyVal !== '') {
+    r.money = Math.round(parseFloat(moneyVal) * 10) / 10;
+  } else {
+    r.money = null;
+  }
+
+  r.note = noteVal.trim();
+
+  closeEdit();
+  saveLocal(); refresh();
+  if (cfg) { const ok = await cloudSave(); if (ok) msg('✅ 已儲存並同步到雲端', 'ok'); else msg('✅ 已儲存（雲端同步失敗）', 'err'); }
+  else msg('✅ 已儲存', 'ok');
+}
+
 /* ---------- 導出 ---------- */
 function download(name, content, mime) {
   const a = document.createElement('a');
@@ -529,19 +612,25 @@ function buildDayCard(date, dayRecs, dayIdxs, isSearchResult) {
     const dur = r.out ? fmtDur(r.out - r.in) : '-';
     const calLink = r.out ? '<a class="session-cal" href="' + makeCalLink(r.in, r.out, r.money) + '" target="_blank" title="加入行事曆">📅</a>' : '';
     const delBtn = '<button class="session-del" onclick="delRec(' + idx + ')" title="刪除">✕</button>';
+    const editBtn = '<button class="session-edit" onclick="editRec(' + idx + ')" title="編輯">✎</button>';
     const noteBadge = r.note ? '<span class="session-note">' + r.note + '</span>' : '';
     sessionsHtml += '<div class="session-row">' +
-      '<div class="session-time">' +
-        '<span class="dot in"></span>' +
-        '<span class="time-str">' + fmtTime(r.in) + '</span>' +
-        '<span class="arrow">→</span>' +
-        '<span class="time-str">' + (r.out ? fmtTime(r.out) : '--:--') + '</span>' +
-        '<span class="dur">(' + dur + ')</span>' +
+      '<div class="session-left">' +
+        '<div class="session-time">' +
+          '<span class="dot in"></span>' +
+          '<span class="time-str">' + fmtTime(r.in) + '</span>' +
+          '<span class="arrow">→</span>' +
+          '<span class="time-str">' + (r.out ? fmtTime(r.out) : '--:--') + '</span>' +
+          '<span class="dur">(' + dur + ')</span>' +
+        '</div>' +
         noteBadge +
       '</div>' +
-      (r.money != null ? '<span class="session-money">$' + r.money.toFixed(1) + '</span>' : '') +
-      calLink +
-      delBtn +
+      '<div class="session-actions">' +
+        (r.money != null ? '<span class="session-money">$' + r.money.toFixed(1) + '</span>' : '') +
+        calLink +
+        editBtn +
+        delBtn +
+      '</div>' +
     '</div>';
   });
 
