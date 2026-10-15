@@ -1,0 +1,11 @@
+--- /tmp/original.html	2026-10-15 08:23:35.837191032 +0000
++++ /tmp/keeta.html	2026-10-15 08:20:55.257191032 +0000
+@@ -863,7 +863,7 @@
+ }
+ 
+ /* ---------- 背景自動同步 ---------- */
+-setInterval(() => { if (cfg && !syncing && !openRec) cloudSave(); }, 60000);
++setInterval(() => { if (cfg && !syncing && !openRec) { cloudLoad().then(() => { if (!openRec) cloudSave(); }); } }, 30000);
+ if (document.visibilityState !== undefined) {
+   document.addEventListener('visibilitychange', () => {
+     if (!document.hidden && cfg) { cloudLoad().then(() => { if (!openRec) cloudSave(); }); }
