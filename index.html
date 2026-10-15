@@ -1,3 +1,862 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="theme-color" content="#27ae60">
+<link rel="manifest" href="manifest.json">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<title>Keeta步兵打卡器</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:"PingFang HK","Microsoft JhengHei",sans-serif; }
+  body { background:#f4f5f7; min-height:100vh; padding:16px; max-width:520px; margin:0 auto; }
+  h1 { font-size:20px; text-align:center; margin-bottom:4px; color:#222; }
+  .sub { text-align:center; color:#888; font-size:13px; margin-bottom:16px; }
+  .card { background:#fff; border-radius:14px; padding:16px; margin-bottom:14px; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+  .status { text-align:center; padding:14px; border-radius:12px; font-size:16px; font-weight:600; margin-bottom:14px; }
+  .status.off { background:#ffecec; color:#c0392b; }
+  .status.on  { background:#e8f8ef; color:#1e8449; }
+  .status small { display:block; font-weight:400; font-size:13px; margin-top:4px; color:#666; }
+  .btn { display:block; width:100%; padding:22px; font-size:22px; font-weight:700; border:none; border-radius:14px; cursor:pointer; margin-bottom:12px; transition:transform .05s; }
+  .btn:active { transform:scale(.97); }
+  .btn-in  { background:#27ae60; color:#fff; }
+  .btn-in:disabled { background:#b8c4bc; cursor:not-allowed; }
+  .btn-out { background:#e74c3c; color:#fff; }
+  .btn-out:disabled { background:#d8b0aa; cursor:not-allowed; }
+  .btn-small { padding:10px; font-size:14px; border-radius:10px; background:#2c3e50; color:#fff; margin-bottom:8px; }
+  .btn-gray { background:#7f8c8d; }
+  .btn-blue { background:#2980b9; }
+  .btn-orange { background:#e67e22; }
+  .money-input, .cfg-input, .bonus-input { width:100%; padding:14px; font-size:16px; border:2px solid #ddd; border-radius:12px; margin-bottom:10px; }
+  .money-input { border-color:#e74c3c; font-size:20px; text-align:center; }
+  .bonus-input { border-color:#e67e22; font-size:18px; text-align:center; }
+  .stats { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .stat { background:#f8f9fa; border-radius:10px; padding:12px; text-align:center; }
+  .stat .v { font-size:20px; font-weight:700; color:#222; }
+  .stat .l { font-size:12px; color:#888; margin-top:2px; }
+  .tabs { display:flex; gap:8px; margin-bottom:12px; }
+  .tab { flex:1; padding:10px; text-align:center; border-radius:10px; background:#eee; cursor:pointer; font-size:14px; font-weight:600; color:#777; border:none; }
+  .tab.active { background:#2c3e50; color:#fff; }
+  .empty { text-align:center; color:#aaa; padding:20px; font-size:14px; }
+  .footer { text-align:center; color:#bbb; font-size:12px; margin-top:16px; }
+  .cfg-toggle { text-align:center; color:#3498db; font-size:14px; cursor:pointer; padding:6px; }
+  .sync-msg { font-size:12px; text-align:center; margin-top:8px; color:#888; min-height:18px; }
+  .sync-msg.ok { color:#27ae60; font-weight:600; }
+  .sync-msg.err { color:#e74c3c; }
+  .sync-msg.syncing { color:#2980b9; }
+  .export-row { display:flex; gap:10px; }
+  .export-row .btn { margin-bottom:0; }
+  .sync-row { display:flex; gap:10px; margin-top:10px; }
+  .sync-row .btn { margin-bottom:0; padding:12px; font-size:14px; }
+  details summary { cursor:pointer; }
+  .last-sync { text-align:center; font-size:11px; color:#bbb; margin-top:4px; }
+  .tip { font-size:11px; color:#999; text-align:center; margin-top:4px; }
+
+  /* ---------- NEW DAY CARD UI ---------- */
+  .day-card { background:#fff; border-radius:14px; margin-bottom:12px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+  .day-card.today { border:2px solid #27ae60; }
+  .day-header { display:flex; justify-content:space-between; align-items:center; padding:14px 16px; background:#f8f9fa; border-bottom:1px solid #eee; }
+  .day-date { font-size:16px; font-weight:700; color:#222; }
+  .day-date .wday { font-size:12px; font-weight:400; color:#888; margin-left:6px; }
+  .day-total { font-size:18px; font-weight:800; color:#1e8449; }
+  .day-body { padding:12px 16px; }
+  .session-row { display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; padding:10px 0; border-bottom:1px dashed #eee; font-size:15px; }
+  .session-row:last-child { border-bottom:none; }
+  .session-left { display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; flex:1 1 auto; min-width:0; }
+  .session-time { display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; }
+  .session-time .dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .session-time .dot.in { background:#27ae60; }
+  .session-time .dot.out { background:#e74c3c; }
+  .session-time .time-str { font-weight:600; color:#333; font-size:15px; }
+  .session-time .arrow { color:#bbb; font-size:13px; }
+  .session-time .dur { color:#888; font-size:12px; }
+  .session-note { font-size:11px; color:#666; background:#f4f5f7; padding:3px 8px; border-radius:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100px; flex-shrink:1; }
+  .session-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; margin-left:auto; }
+  .session-money { font-weight:700; color:#1e8449; font-size:15px; min-width:52px; text-align:right; }
+  .session-cal { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:8px; background:#fff3e0; color:#e67e22; text-decoration:none; font-size:13px; flex-shrink:0; }
+  .session-del { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:8px; background:#ffecec; color:#c0392b; border:none; font-size:13px; cursor:pointer; flex-shrink:0; }
+  .session-del:active { transform:scale(.9); }
+  .session-edit { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:8px; background:#e3f2fd; color:#2980b9; border:none; font-size:14px; cursor:pointer; flex-shrink:0; }
+  .session-edit:active { transform:scale(.9); }
+  .edit-modal { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; z-index:100; }
+  .edit-box { background:#fff; border-radius:16px; padding:20px; width:90%; max-width:400px; }
+  .edit-box h3 { margin-bottom:12px; font-size:18px; }
+  .edit-box input { width:100%; padding:12px; font-size:15px; border:2px solid #ddd; border-radius:10px; margin-bottom:10px; }
+  .edit-box .edit-actions { display:flex; gap:10px; margin-top:10px; }
+  .edit-box .edit-actions button { flex:1; padding:12px; border:none; border-radius:10px; font-size:15px; font-weight:600; cursor:pointer; }
+  .edit-box .edit-actions .save { background:#27ae60; color:#fff; }
+  .edit-box .edit-actions .cancel { background:#eee; color:#555; }
+  .session-note { font-size:11px; color:#666; background:#f4f5f7; padding:3px 8px; border-radius:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100px; flex-shrink:1; }
+  .note-input { width:100%; padding:12px; font-size:15px; border:2px solid #ddd; border-radius:12px; margin-bottom:10px; }
+  .note-input:focus { border-color:#27ae60; outline:none; }
+  .last-money-hint { text-align:center; font-size:13px; color:#2980b9; margin-bottom:8px; min-height:18px; font-weight:600; }
+  .chart-wrap { position:relative; height:260px; margin-top:16px; }
+  .bonus-row2 { display:flex; align-items:center; gap:8px; padding:10px 0; background:#fff8e1; margin:0 -16px; padding-left:16px; padding-right:16px; border-top:1px dashed #f0e0b0; }
+  .bonus-row2 .gift { font-size:16px; }
+  .bonus-row2 .bonus-label { font-size:13px; color:#e67e22; }
+  .bonus-row2 .bonus-amt { font-weight:700; color:#e67e22; font-size:15px; margin-left:auto; }
+  .day-actions { display:flex; gap:8px; padding:10px 16px 14px; }
+  .day-actions .act-btn { flex:1; padding:10px; border-radius:10px; border:none; font-size:14px; font-weight:600; cursor:pointer; text-align:center; text-decoration:none; display:inline-block; }
+  .day-actions .act-btn.del { background:#ffecec; color:#c0392b; }
+  .day-actions .act-btn.cal { background:#fff3e0; color:#e67e22; }
+  .day-actions .act-btn.del-bonus { background:#fff8e1; color:#e67e22; font-size:13px; }
+
+  /* week/month table */
+  .summary-table { width:100%; border-collapse:collapse; font-size:14px; }
+  .summary-table th, .summary-table td { padding:12px 8px; text-align:center; border-bottom:1px solid #eee; }
+  .summary-table th { color:#888; font-weight:600; font-size:13px; background:#f8f9fa; }
+  .summary-table td.money { color:#1e8449; font-weight:700; font-size:15px; }
+
+  /* orphan bonus cards */
+  .bonus-card { background:#fff8e1; border-radius:14px; padding:14px 16px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+  .bonus-card .gift { font-size:20px; }
+  .bonus-card .bc-info { flex:1; margin-left:10px; }
+  .bonus-card .bc-date { font-size:14px; font-weight:600; color:#555; }
+  .bonus-card .bc-label { font-size:12px; color:#e67e22; }
+  .bonus-card .bc-amt { font-size:18px; font-weight:800; color:#e67e22; }
+  .bonus-card .bc-del { background:#fff; border:none; border-radius:8px; padding:6px 12px; font-size:14px; cursor:pointer; color:#c0392b; margin-left:8px; }
+
+  /* search & show more */
+  .search-bar { display:flex; gap:8px; margin-bottom:12px; }
+  .search-bar input { flex:1; padding:10px 14px; font-size:15px; border:2px solid #ddd; border-radius:10px; }
+  .search-bar input:focus { border-color:#2980b9; outline:none; }
+  .search-bar button { padding:10px 16px; border:none; border-radius:10px; background:#2980b9; color:#fff; font-size:14px; font-weight:600; cursor:pointer; }
+  .search-bar button.clear { background:#7f8c8d; }
+  .show-more-btn { display:block; width:100%; padding:14px; text-align:center; background:#f0f2f5; border:none; border-radius:12px; font-size:15px; font-weight:600; color:#555; cursor:pointer; margin-top:8px; }
+  .show-more-btn:active { background:#e4e6e9; }
+</style>
+</head>
+<body>
+
+<h1>🛵 Keeta 步兵打卡器</h1>
+<div class="sub">開工按綠色按鈕 ・ 收工按紅色按鈕</div>
+
+<div class="card">
+  <div id="statusBox" class="status off">未開工<small></small></div>
+  <button id="btnIn" class="btn btn-in" onclick="clockIn()">📍 開工打卡</button>
+  <div id="lastMoneyHint" class="last-money-hint"></div>
+  <input id="moneyInput" class="money-input" type="number" inputmode="decimal" min="0" step="0.1" placeholder="收工請輸入今日累計賺了多少錢（HK$）">
+  <input id="noteInput" class="note-input" type="text" placeholder="備註（例如：天氣、單量、地區…）">
+  <button id="btnOut" class="btn btn-out" onclick="clockOut()" disabled>🏁 收工打卡</button>
+  <div id="syncMsg" class="sync-msg"></div>
+  <div class="sync-row">
+    <button class="btn btn-small btn-blue" onclick="forceSync()">☁️ 立即同步</button>
+    <button class="btn btn-small btn-gray" onclick="syncFromCloud()">📥 從雲端下載</button>
+  </div>
+  <div id="lastSync" class="last-sync"></div>
+  <div class="tip">💡 一天可多次打卡，收工輸入當天累計總收入</div>
+</div>
+
+<div class="card">
+  <input id="bonusInput" class="bonus-input" type="number" inputmode="decimal" min="0" step="0.1" placeholder="輸入今日獎賞金額（HK$）">
+  <button class="btn btn-small btn-orange" onclick="addBonus()">🎁 加入今日獎賞</button>
+  <div id="bonusMsg" class="sync-msg"></div>
+</div>
+
+<div class="card">
+  <div class="stats">
+    <div class="stat"><div class="v" id="stTotal">$0</div><div class="l">💰 累計收入</div></div>
+    <div class="stat"><div class="v" id="stDays">0日</div><div class="l">📅 開工日數</div></div>
+    <div class="stat"><div class="v" id="stAvg">$0</div><div class="l">📊 平均每日</div></div>
+    <div class="stat"><div class="v" id="stHours">0小時</div><div class="l">⏱ 累計時數</div></div>
+    <div class="stat"><div class="v" id="stWeek">$0</div><div class="l">🗓 本星期</div></div>
+    <div class="stat"><div class="v" id="stMonth">$0</div><div class="l">🗓 本月份</div></div>
+    <div class="stat"><div class="v" id="stBonus">$0</div><div class="l">🎁 累計獎賞</div></div>
+    <div class="stat"><div class="v" id="stWeekBonus">$0</div><div class="l">🎁 本星期獎賞</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="export-row">
+    <button class="btn btn-small" onclick="exportCSV()">📄 導出 CSV</button>
+    <button class="btn btn-small btn-gray" onclick="exportJSON()">📄 導出 JSON</button>
+  </div>
+  <button id="installBtn" class="btn btn-small btn-blue" style="display:none;margin-top:10px;" onclick="installPWA()">📲 加到主畫面</button>
+</div>
+
+<div class="card">
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('day',this)">日</button>
+    <button class="tab" onclick="switchTab('week',this)">星期</button>
+    <button class="tab" onclick="switchTab('month',this)">月份</button>
+  </div>
+  <div id="searchBar" class="search-bar" style="display:none;">
+    <input id="searchDate" type="date" placeholder="選擇日期">
+    <button onclick="searchDay()">🔍 搜尋</button>
+    <button class="clear" onclick="clearSearch()">清除</button>
+  </div>
+  <div id="recordBox"></div>
+</div>
+
+<div class="card">
+  <details>
+    <summary class="cfg-toggle">⚙️ GitHub 雲端同步設定（手機電腦共用資料）</summary>
+    <div style="margin-top:12px">
+      <input id="cfgUser" class="cfg-input" placeholder="GitHub 用戶名">
+      <input id="cfgRepo" class="cfg-input" placeholder="Repository 名稱（例如 keeta-clock）">
+      <input id="cfgToken" class="cfg-input" type="password" placeholder="Personal Access Token">
+      <button class="btn btn-small" onclick="saveConfig()">💾 儲存設定並同步</button>
+      <button class="btn btn-small btn-gray" onclick="clearConfig()">清除雲端設定</button>
+      <div class="sync-msg">Token 只儲存在你的機器，不會上傳。教學見安裝步驟。</div>
+    </div>
+  </details>
+</div>
+
+<div class="footer">資料本地備份 + GitHub 雲端同步 ☁️</div>
+
+<script>
+const KEY = 'keeta_walker_records';
+const CFG = 'keeta_walker_cfg';
+const DELETED_KEY = 'keeta_walker_deleted';
+const BONUS_KEY = 'keeta_walker_bonuses';
+let records = JSON.parse(localStorage.getItem(KEY) || '[]');
+let openRec = JSON.parse(localStorage.getItem(KEY + '_open') || 'null');
+let deletedIds = JSON.parse(localStorage.getItem(DELETED_KEY) || '[]');
+let bonuses = JSON.parse(localStorage.getItem(BONUS_KEY) || '[]');
+let cfg = JSON.parse(localStorage.getItem(CFG) || 'null');
+let view = 'day';
+let cloudSha = null;
+let syncing = false;
+let daysToShow = 5;
+let searchDateVal = '';
+
+function saveLocal() {
+  localStorage.setItem(KEY, JSON.stringify(records));
+  localStorage.setItem(KEY + '_open', JSON.stringify(openRec));
+  localStorage.setItem(DELETED_KEY, JSON.stringify(deletedIds));
+  localStorage.setItem(BONUS_KEY, JSON.stringify(bonuses));
+}
+function todayStr(d) {
+  d = d || new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function fmtTime(ts) {
+  const d = new Date(ts);
+  return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+function fmtDur(ms) { return (ms / 3600000).toFixed(1) + 'h'; }
+function uid() { return Date.now() + '-' + Math.random().toString(36).slice(2,8); }
+
+function msg(text, type) {
+  const el = document.getElementById('syncMsg');
+  el.textContent = text;
+  el.className = 'sync-msg' + (type ? ' ' + type : '');
+}
+function bonusMsg(text, type) {
+  const el = document.getElementById('bonusMsg');
+  el.textContent = text;
+  el.className = 'sync-msg' + (type ? ' ' + type : '');
+}
+function setLastSync() {
+  const el = document.getElementById('lastSync');
+  el.textContent = '最後同步：' + fmtTime(Date.now());
+}
+function getLastMoney() {
+  const today = todayStr();
+  const todayRecs = records.filter(r => r.date === today && r.money != null);
+  return todayRecs.length ? todayRecs[todayRecs.length - 1].money : null;
+}
+function updateLastMoneyHint() {
+  const hint = document.getElementById('lastMoneyHint');
+  const last = getLastMoney();
+  hint.textContent = last != null ? '上次輸入 $' + last.toFixed(1) + '（供參考）' : '';
+}
+
+/* ---------- Google Calendar ---------- */
+function toCalDate(ts) {
+  const d = new Date(ts);
+  return d.toISOString().replace(/[-:]/g,'').split('.')[0] + 'Z';
+}
+function makeCalLink(startTs, endTs, money) {
+  const text = 'Keeta開工';
+  const details = '當日累計收入：HK$' + (money || 0);
+  const dates = toCalDate(startTs) + '/' + toCalDate(endTs);
+  return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent(text) + '&details=' + encodeURIComponent(details) + '&dates=' + dates;
+}
+
+/* ---------- 每日收入計算（含獎賞） ---------- */
+function getDayBonus(date) {
+  return bonuses.filter(b => b.date === date).reduce((s, b) => s + b.amount, 0);
+}
+function dailyIncomeMap() {
+  const map = {};
+  records.forEach(r => { if (r.money != null) map[r.date] = r.money; });
+  bonuses.forEach(b => {
+    if (map[b.date] != null) map[b.date] += b.amount;
+    else map[b.date] = b.amount;
+  });
+  return map;
+}
+function sumDailyIncome(filterFn) {
+  const map = dailyIncomeMap();
+  let sum = 0;
+  Object.keys(map).forEach(date => { if (!filterFn || filterFn(date)) sum += map[date]; });
+  return sum;
+}
+function countWorkDays(filterFn) {
+  const map = dailyIncomeMap();
+  let count = 0;
+  Object.keys(map).forEach(date => { if (!filterFn || filterFn(date)) count++; });
+  return count;
+}
+function getLastRecordIdPerDay() {
+  const map = {};
+  records.forEach(r => { if (r.out) map[r.date] = r.id; });
+  return map;
+}
+function sumBonuses(filterFn) {
+  return bonuses.reduce((s, b) => { if (!filterFn || filterFn(b.date)) return s + b.amount; return s; }, 0);
+}
+
+/* ---------- 獎賞 ---------- */
+async function addBonus() {
+  const v = parseFloat(document.getElementById('bonusInput').value);
+  if (isNaN(v) || v <= 0) { bonusMsg('請輸入有效獎賞金額', 'err'); return; }
+  bonuses.push({ id: uid(), date: todayStr(), amount: Math.round(v * 10) / 10 });
+  document.getElementById('bonusInput').value = '';
+  saveLocal(); refresh();
+  bonusMsg('✅ 已加入今日獎賞 HK$' + v, 'ok');
+  if (cfg) await cloudSave();
+}
+async function delBonus(id) {
+  if (!confirm('確定刪除這個獎賞？')) return;
+  bonuses = bonuses.filter(b => b.id !== id);
+  if (!deletedIds.includes(id)) deletedIds.push(id);
+  saveLocal(); refresh();
+  if (cfg) { const ok = await cloudSave(); if (ok) msg('🗑 已刪除獎賞並同步到雲端', 'ok'); else msg('🗑 已刪除獎賞（雲端同步失敗）', 'err'); }
+  else msg('🗑 已刪除獎賞', 'ok');
+}
+
+/* ---------- GitHub 雲端同步 ---------- */
+function ghHeaders() {
+  return { 'Authorization': 'token ' + cfg.token, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' };
+}
+function mergeRecords(localRecs, cloudRecs) {
+  const map = {};
+  (localRecs || []).forEach(r => { if (!deletedIds.includes(r.id)) map[r.id] = r; });
+  (cloudRecs || []).forEach(r => {
+    if (deletedIds.includes(r.id)) return;
+    if (!map[r.id]) map[r.id] = r;
+    else if ((r.out||r.in) > (map[r.id].out||map[r.id].in)) map[r.id] = r;
+  });
+  return Object.values(map).sort((a,b) => a.in - b.in);
+}
+function mergeBonuses(localBonuses, cloudBonuses) {
+  const map = {};
+  (localBonuses || []).forEach(b => { if (!deletedIds.includes(b.id)) map[b.id] = b; });
+  (cloudBonuses || []).forEach(b => {
+    if (deletedIds.includes(b.id)) return;
+    if (!map[b.id]) map[b.id] = b;
+  });
+  return Object.values(map);
+}
+
+async function cloudLoad() {
+  if (!cfg) return;
+  try {
+    msg('📥 正在從雲端下載…', 'syncing');
+    const r = await fetch('https://api.github.com/repos/' + cfg.user + '/' + cfg.repo + '/contents/data.json', { headers: ghHeaders() });
+    if (r.status === 404) { cloudSha = null; msg('☁️ 雲端未有資料，將會新建'); return; }
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const j = await r.json();
+    cloudSha = j.sha;
+    const cloudData = JSON.parse(decodeURIComponent(escape(atob(j.content.replace(/\n/g,'')))));
+    (cloudData.deletedIds || []).forEach(id => { if (!deletedIds.includes(id)) deletedIds.push(id); });
+    records = mergeRecords(records, cloudData.records);
+    bonuses = mergeBonuses(bonuses, cloudData.bonuses);
+    if (cloudData.openRec && !deletedIds.includes(cloudData.openRec.id)) {
+      if (!openRec || cloudData.openRec.in > openRec.in) openRec = cloudData.openRec;
+    }
+    saveLocal(); refresh();
+    msg('✅ 已從雲端同步 ' + records.length + ' 條記錄', 'ok');
+    setLastSync();
+  } catch (e) { msg('⚠️ 下載失敗：' + e.message, 'err'); }
+}
+
+async function cloudSave() {
+  if (!cfg) { msg('未設定 GitHub（只用本機模式）'); return false; }
+  if (syncing) return false;
+  syncing = true;
+  try {
+    msg('☁️ 正在同步上雲端…', 'syncing');
+    const r = await fetch('https://api.github.com/repos/' + cfg.user + '/' + cfg.repo + '/contents/data.json', { headers: ghHeaders() });
+    if (r.ok) {
+      const j = await r.json(); cloudSha = j.sha;
+      const cd = JSON.parse(decodeURIComponent(escape(atob(j.content.replace(/\n/g,'')))));
+      (cd.deletedIds || []).forEach(id => { if (!deletedIds.includes(id)) deletedIds.push(id); });
+      records = mergeRecords(records, cd.records);
+      bonuses = mergeBonuses(bonuses, cd.bonuses);
+    } else { cloudSha = null; }
+    const payload = JSON.stringify({ records, openRec, deletedIds, bonuses });
+    const body = { message: 'update clock records ' + todayStr() + ' ' + fmtTime(Date.now()), content: btoa(unescape(encodeURIComponent(payload))) };
+    if (cloudSha) body.sha = cloudSha;
+    const w = await fetch('https://api.github.com/repos/' + cfg.user + '/' + cfg.repo + '/contents/data.json', {
+      method: 'PUT', headers: ghHeaders(), body: JSON.stringify(body)
+    });
+    if (!w.ok) { const err = await w.json().catch(() => ({})); throw new Error(err.message || 'HTTP ' + w.status); }
+    const wj = await w.json();
+    cloudSha = wj.content.sha;
+    msg('✅ 已同步到 GitHub ☁️', 'ok');
+    setLastSync(); saveLocal(); refresh();
+    return true;
+  } catch (e) { msg('⚠️ 同步失敗（已保留在本機）：' + e.message, 'err'); return false; }
+  finally { syncing = false; }
+}
+
+async function forceSync() { if (!cfg) { alert('請先在下面設定 GitHub Token'); return; } await cloudSave(); }
+async function syncFromCloud() { if (!cfg) { alert('請先在下面設定 GitHub Token'); return; } await cloudLoad(); }
+
+function saveConfig() {
+  const user = document.getElementById('cfgUser').value.trim();
+  const repo = document.getElementById('cfgRepo').value.trim();
+  const token = document.getElementById('cfgToken').value.trim();
+  if (!user || !repo || !token) { alert('三項都要填！'); return; }
+  cfg = { user, repo, token };
+  localStorage.setItem(CFG, JSON.stringify(cfg));
+  msg(''); cloudLoad().then(() => cloudSave());
+}
+function clearConfig() {
+  cfg = null; cloudSha = null; deletedIds = []; bonuses = [];
+  localStorage.removeItem(CFG); localStorage.removeItem(DELETED_KEY); localStorage.removeItem(BONUS_KEY);
+  document.getElementById('cfgUser').value = '';
+  document.getElementById('cfgRepo').value = '';
+  document.getElementById('cfgToken').value = '';
+  msg('已清除雲端設定，只用本機模式');
+  document.getElementById('lastSync').textContent = '';
+}
+
+/* ---------- 打卡 ---------- */
+async function clockIn() {
+  if (openRec) { alert('已經開工了！'); return; }
+  openRec = { id: uid(), date: todayStr(), in: Date.now(), out: null, money: null, note: '' };
+  updateLastMoneyHint();
+  saveLocal(); refresh();
+  if (cfg) {
+    const ok = await cloudSave();
+    if (ok) alert('✅ 開工打卡成功！已同步到雲端\n' + fmtTime(openRec.in));
+    else alert('✅ 開工打卡成功！（雲端同步失敗，已保留在本機）\n' + fmtTime(openRec.in));
+  } else alert('✅ 開工打卡成功！' + fmtTime(openRec.in));
+}
+
+async function clockOut() {
+  if (!openRec) { alert('還未開工！'); return; }
+  const v = parseFloat(document.getElementById('moneyInput').value);
+  if (isNaN(v) || v < 0) { alert('請輸入今日累計賺了多少錢！'); return; }
+  openRec.out = Date.now();
+  openRec.money = Math.round(v * 10) / 10;
+  openRec.note = document.getElementById('noteInput').value.trim();
+  records.push(openRec);
+  openRec = null;
+  document.getElementById('moneyInput').value = '';
+  document.getElementById('noteInput').value = '';
+  saveLocal(); refresh();
+  if (cfg) {
+    const ok = await cloudSave();
+    if (ok) alert('✅ 收工打卡成功！已同步到雲端\n今日累計賺了 HK$' + v);
+    else alert('✅ 收工打卡成功！（雲端同步失敗，已保留在本機）\n今日累計賺了 HK$' + v);
+  } else alert('✅ 收工打卡成功！今日累計賺了 HK$' + v);
+}
+
+async function delRec(i) {
+  if (!confirm('確定刪除這條記錄？')) return;
+  const id = records[i].id;
+  records.splice(i, 1);
+  if (!deletedIds.includes(id)) deletedIds.push(id);
+  saveLocal(); refresh();
+  if (cfg) { const ok = await cloudSave(); if (ok) msg('🗑 已刪除並同步到雲端', 'ok'); else msg('🗑 已刪除（雲端同步失敗）', 'err'); }
+  else msg('🗑 已刪除', 'ok');
+}
+
+function editRec(i) {
+  const r = records[i];
+  const inDate = new Date(r.in);
+  const outDate = r.out ? new Date(r.out) : null;
+  const inStr = String(inDate.getHours()).padStart(2,'0') + ':' + String(inDate.getMinutes()).padStart(2,'0');
+  const outStr = outDate ? String(outDate.getHours()).padStart(2,'0') + ':' + String(outDate.getMinutes()).padStart(2,'0') : '';
+
+  // Create modal
+  const modal = document.createElement('div');
+  modal.className = 'edit-modal';
+  modal.innerHTML = '<div class="edit-box">' +
+    '<h3>✎ 編輯打卡記錄</h3>' +
+    '<label style="font-size:13px;color:#888;">開工時間</label>' +
+    '<input id="editIn" type="time" value="' + inStr + '">' +
+    '<label style="font-size:13px;color:#888;">收工時間（留空表示未收工）</label>' +
+    '<input id="editOut" type="time" value="' + outStr + '">' +
+    '<label style="font-size:13px;color:#888;">收入金額</label>' +
+    '<input id="editMoney" type="number" inputmode="decimal" min="0" step="0.1" value="' + (r.money != null ? r.money : '') + '">' +
+    '<label style="font-size:13px;color:#888;">備註</label>' +
+    '<input id="editNote" type="text" value="' + (r.note || '') + '">' +
+    '<div class="edit-actions">' +
+      '<button class="save" onclick="saveEdit(' + i + ')">💾 儲存</button>' +
+      '<button class="cancel" onclick="closeEdit()">取消</button>' +
+    '</div>' +
+  '</div>';
+  document.body.appendChild(modal);
+}
+
+function closeEdit() {
+  const modal = document.querySelector('.edit-modal');
+  if (modal) modal.remove();
+}
+
+async function saveEdit(i) {
+  const r = records[i];
+  const inVal = document.getElementById('editIn').value;
+  const outVal = document.getElementById('editOut').value;
+  const moneyVal = document.getElementById('editMoney').value;
+  const noteVal = document.getElementById('editNote').value;
+
+  if (!inVal) { alert('開工時間不能為空！'); return; }
+
+  const [inH, inM] = inVal.split(':').map(Number);
+  const inDate = new Date(r.in);
+  inDate.setHours(inH, inM, 0, 0);
+  r.in = inDate.getTime();
+
+  if (outVal) {
+    const [outH, outM] = outVal.split(':').map(Number);
+    const outDate = new Date(r.out || r.in);
+    outDate.setHours(outH, outM, 0, 0);
+    r.out = outDate.getTime();
+  } else {
+    r.out = null;
+  }
+
+  if (moneyVal !== '') {
+    r.money = Math.round(parseFloat(moneyVal) * 10) / 10;
+  } else {
+    r.money = null;
+  }
+
+  r.note = noteVal.trim();
+
+  closeEdit();
+  saveLocal(); refresh();
+  if (cfg) { const ok = await cloudSave(); if (ok) msg('✅ 已儲存並同步到雲端', 'ok'); else msg('✅ 已儲存（雲端同步失敗）', 'err'); }
+  else msg('✅ 已儲存', 'ok');
+}
+
+/* ---------- 導出 ---------- */
+function download(name, content, mime) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], { type: mime }));
+  a.download = name; a.click();
+  URL.revokeObjectURL(a.href);
+}
+function exportCSV() {
+  if (!records.length && !bonuses.length) { alert('還沒有記錄！'); return; }
+  const incMap = dailyIncomeMap();
+  let csv = '\ufeff日期,開工時間,收工時間,工作時數,當日總收入HK$,備註,時段備註\r\n';
+  records.forEach(r => {
+    const lastIds = getLastRecordIdPerDay();
+    const isLastOfDay = lastIds[r.date] === r.id;
+    const note = isLastOfDay ? '當日最後收工' : '';
+    csv += [r.date, fmtTime(r.in), r.out ? fmtTime(r.out) : '', r.out ? ((r.out-r.in)/3600000).toFixed(2) : '', r.money, note, r.note || ''].join(',') + '\r\n';
+  });
+  if (bonuses.length) {
+    csv += '\r\n獎賞記錄\r\n日期,金額\r\n';
+    bonuses.forEach(b => {
+      csv += [b.date, b.amount].join(',') + '\r\n';
+    });
+  }
+  download('keeta_' + todayStr().replace(/-/g,'') + '.csv', csv, 'text/csv;charset=utf-8');
+}
+function exportJSON() {
+  if (!records.length && !bonuses.length) { alert('還沒有記錄！'); return; }
+  download('keeta_' + todayStr().replace(/-/g,'') + '.json', JSON.stringify({ records, bonuses }, null, 2), 'application/json');
+}
+
+/* ---------- 顯示 ---------- */
+function wday(d) {
+  const arr = ['日','一','二','三','四','五','六'];
+  return arr[new Date(d).getDay()];
+}
+function switchTab(v, el) {
+  view = v;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  const searchBar = document.getElementById('searchBar');
+  if (view === 'day') searchBar.style.display = 'flex';
+  else searchBar.style.display = 'none';
+  renderRecords();
+}
+function searchDay() {
+  const val = document.getElementById('searchDate').value;
+  searchDateVal = val;
+  daysToShow = 5;
+  renderRecords();
+}
+function clearSearch() {
+  document.getElementById('searchDate').value = '';
+  searchDateVal = '';
+  daysToShow = 5;
+  renderRecords();
+}
+function showMore() {
+  daysToShow += 5;
+  renderRecords();
+}
+function buildDayCard(date, dayRecs, dayIdxs, isSearchResult) {
+  const lastRec = dayRecs[dayRecs.length - 1];
+  const dayBonusAmt = getDayBonus(date);
+  const today = todayStr();
+  const isToday = date === today;
+
+  let sessionsHtml = '';
+  dayRecs.forEach((r, i) => {
+    const idx = dayIdxs[i];
+    const dur = r.out ? fmtDur(r.out - r.in) : '-';
+    const calLink = r.out ? '<a class="session-cal" href="' + makeCalLink(r.in, r.out, r.money) + '" target="_blank" title="加入行事曆">📅</a>' : '';
+    const delBtn = '<button class="session-del" onclick="delRec(' + idx + ')" title="刪除">✕</button>';
+    const editBtn = '<button class="session-edit" onclick="editRec(' + idx + ')" title="編輯">✎</button>';
+    const noteBadge = r.note ? '<span class="session-note">' + r.note + '</span>' : '';
+    sessionsHtml += '<div class="session-row">' +
+      '<div class="session-left">' +
+        '<div class="session-time">' +
+          '<span class="dot in"></span>' +
+          '<span class="time-str">' + fmtTime(r.in) + '</span>' +
+          '<span class="arrow">→</span>' +
+          '<span class="time-str">' + (r.out ? fmtTime(r.out) : '--:--') + '</span>' +
+          '<span class="dur">(' + dur + ')</span>' +
+        '</div>' +
+        noteBadge +
+      '</div>' +
+      '<div class="session-actions">' +
+        (r.money != null ? '<span class="session-money">$' + r.money.toFixed(1) + '</span>' : '') +
+        calLink +
+        editBtn +
+        delBtn +
+      '</div>' +
+    '</div>';
+  });
+
+  let bonusHtml = '';
+  const dayBonuses = bonuses.filter(b => b.date === date);
+  dayBonuses.forEach(b => {
+    bonusHtml += '<div class="bonus-row2">' +
+      '<span class="gift">🎁</span>' +
+      '<span class="bonus-label">獎賞</span>' +
+      '<span class="bonus-amt">$' + b.amount.toFixed(1) + '</span>' +
+    '</div>';
+  });
+
+  const totalMoney = (lastRec.money || 0) + dayBonusAmt;
+
+  return '<div class="day-card ' + (isToday ? 'today' : '') + '">' +
+    '<div class="day-header">' +
+      '<div class="day-date">' + date + '<span class="wday">星期' + wday(date) + '</span></div>' +
+      '<div class="day-total">$' + totalMoney.toFixed(1) + '</div>' +
+    '</div>' +
+    '<div class="day-body">' + sessionsHtml + '</div>' +
+    (bonusHtml || '') +
+    '<div class="day-actions">' +
+      '<button class="act-btn del" onclick="if(confirm(\'確定刪除這天的所有記錄？\')){[' + dayIdxs.join(',') + '].reverse().forEach(i=>delRec(i))}">🗑 刪除當日全部</button>' +
+    '</div>' +
+  '</div>';
+}
+function renderRecords() {
+  const box = document.getElementById('recordBox');
+  if (!records.length && !bonuses.length) { box.innerHTML = '<div class="empty">還沒有記錄，快開工打卡吧！</div>'; return; }
+
+  if (view === 'day') {
+    // Group records by date
+    const dayMap = {};
+    records.forEach((r, idx) => {
+      if (!dayMap[r.date]) dayMap[r.date] = { records: [], indices: [] };
+      dayMap[r.date].records.push(r);
+      dayMap[r.date].indices.push(idx);
+    });
+
+    // Sort dates descending
+    const allDates = Object.keys(dayMap).sort().reverse();
+    const today = todayStr();
+    let html = '';
+    let displayDates = [];
+
+    if (searchDateVal) {
+      // Search mode: only show matching date
+      if (dayMap[searchDateVal]) {
+        displayDates = [searchDateVal];
+      } else {
+        box.innerHTML = '<div class="empty">🔍 找不到 ' + searchDateVal + ' 的記錄</div>';
+        return;
+      }
+    } else {
+      // Normal mode: limit to daysToShow
+      displayDates = allDates.slice(0, daysToShow);
+    }
+
+    displayDates.forEach(date => {
+      const day = dayMap[date];
+      html += buildDayCard(date, day.records, day.indices, !!searchDateVal);
+    });
+
+    // Orphan bonuses (dates with bonuses but no work records)
+    if (!searchDateVal) {
+      const workDates = new Set(allDates);
+      const orphanBonuses = bonuses.filter(b => !workDates.has(b.date));
+      // Only show orphan bonuses within the date range we're displaying
+      const shownDates = new Set(displayDates);
+      orphanBonuses.forEach(b => {
+        if (shownDates.has(b.date) || allDates.indexOf(b.date) < daysToShow) {
+          html += '<div class="bonus-card">' +
+            '<span class="gift">🎁</span>' +
+            '<div class="bc-info">' +
+              '<div class="bc-date">' + b.date + ' 星期' + wday(b.date) + '</div>' +
+              '<div class="bc-label">獎賞</div>' +
+            '</div>' +
+            '<div class="bc-amt">$' + b.amount.toFixed(1) + '</div>' +
+            '<button class="bc-del" onclick="delBonus(\'' + b.id + '\')">✕</button>' +
+          '</div>';
+        }
+      });
+    } else {
+      // Search mode: also show matching orphan bonuses
+      const orphanMatch = bonuses.filter(b => b.date === searchDateVal && !dayMap[searchDateVal]);
+      orphanMatch.forEach(b => {
+        html += '<div class="bonus-card">' +
+          '<span class="gift">🎁</span>' +
+          '<div class="bc-info">' +
+            '<div class="bc-date">' + b.date + ' 星期' + wday(b.date) + '</div>' +
+            '<div class="bc-label">獎賞</div>' +
+          '</div>' +
+          '<div class="bc-amt">$' + b.amount.toFixed(1) + '</div>' +
+          '<button class="bc-del" onclick="delBonus(\'' + b.id + '\')">✕</button>' +
+        '</div>';
+      });
+    }
+
+    // Show more button
+    if (!searchDateVal && allDates.length > daysToShow) {
+      const remaining = allDates.length - daysToShow;
+      html += '<button class="show-more-btn" onclick="showMore()">🔽 顯示更多 (' + remaining + ' 天)</button>';
+    }
+
+    box.innerHTML = html;
+
+  } else {
+    // week/month summary table
+    const groups = {};
+    records.forEach(r => {
+      const d = new Date(r.in);
+      let k;
+      if (view === 'week') {
+        const onejan = new Date(d.getFullYear(),0,1);
+        const week = Math.ceil((((d - onejan) / 86400000) + onejan.getDay() + 1) / 7);
+        k = d.getFullYear() + ' 第' + week + '週';
+      } else {
+        k = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+      }
+      if (!groups[k]) groups[k] = { money:0, hours:0, days: new Set() };
+      groups[k].days.add(r.date);
+      if (r.out) groups[k].hours += (r.out - r.in) / 3600000;
+    });
+    const dayMap2 = dailyIncomeMap();
+    Object.keys(dayMap2).forEach(date => {
+      const d = new Date(date);
+      let k;
+      if (view === 'week') {
+        const onejan = new Date(d.getFullYear(),0,1);
+        const week = Math.ceil((((d - onejan) / 86400000) + onejan.getDay() + 1) / 7);
+        k = d.getFullYear() + ' 第' + week + '週';
+      } else {
+        k = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+      }
+      if (groups[k]) groups[k].money += dayMap2[date];
+    });
+    let html = '<table class="summary-table"><tr><th>期間</th><th>日數</th><th>時數</th><th>收入</th></tr>';
+    Object.keys(groups).sort().reverse().forEach(k => {
+      const g = groups[k];
+      html += '<tr><td>' + k + '</td><td>' + g.days.size + '日</td><td>' + g.hours.toFixed(1) + 'h</td><td class="money">$' + g.money.toFixed(1) + '</td></tr>';
+    });
+    html += '</table>';
+    if (view === 'month') {
+      html += '<div class="chart-wrap"><canvas id="monthChart"></canvas></div>';
+      box.innerHTML = html;
+      renderMonthChart(groups);
+    } else {
+      box.innerHTML = html;
+    }
+  }
+}
+function renderMonthChart(groups) {
+  const canvas = document.getElementById('monthChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const labels = Object.keys(groups).sort().reverse().slice(0, 6).reverse();
+  const data = labels.map(k => groups[k].money);
+  if (window._monthChart) window._monthChart.destroy();
+  window._monthChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: '收入 HK$',
+        data: data,
+        backgroundColor: 'rgba(39, 174, 96, 0.6)',
+        borderColor: '#27ae60',
+        borderWidth: 1,
+        borderRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { callback: function(v) { return '$' + v; } } }
+      }
+    }
+  });
+}
+function refresh() {
+  const st = document.getElementById('statusBox');
+  const btnIn = document.getElementById('btnIn');
+  const btnOut = document.getElementById('btnOut');
+  if (openRec) {
+    updateLastMoneyHint();
+    st.className = 'status on';
+    st.innerHTML = '✅ 開工中<small>' + openRec.date + ' ' + fmtTime(openRec.in) + ' 開工</small>';
+    btnIn.disabled = true; btnOut.disabled = false;
+  } else {
+    st.className = 'status off';
+    st.innerHTML = '🔴 未開工<small></small>';
+    btnIn.disabled = false; btnOut.disabled = true;
+    document.getElementById('lastMoneyHint').textContent = '';
+  }
+  const hours = records.reduce((s,r) => s + (r.out ? (r.out - r.in) : 0), 0) / 3600000;
+  const total = sumDailyIncome();
+  const now = new Date();
+  const weekStart = new Date(now); weekStart.setDate(now.getDate() - ((now.getDay()+6)%7)); weekStart.setHours(0,0,0,0);
+  const monthStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+  const totalDays = countWorkDays();
+  const weekIncome = sumDailyIncome(d => new Date(d) >= weekStart);
+  const monthIncome = sumDailyIncome(d => d.startsWith(monthStr));
+  const totalBonus = sumBonuses();
+  const weekBonus = sumBonuses(d => new Date(d) >= weekStart);
+  document.getElementById('stTotal').textContent = '$' + total.toFixed(1);
+  document.getElementById('stDays').textContent = totalDays + '日';
+  document.getElementById('stAvg').textContent = '$' + (totalDays ? (total/totalDays).toFixed(1) : 0);
+  document.getElementById('stHours').textContent = hours.toFixed(1) + '小時';
+  document.getElementById('stWeek').textContent = '$' + weekIncome.toFixed(1);
+  document.getElementById('stMonth').textContent = '$' + monthIncome.toFixed(1);
+  document.getElementById('stBonus').textContent = '$' + totalBonus.toFixed(1);
+  document.getElementById('stWeekBonus').textContent = '$' + weekBonus.toFixed(1);
+  renderRecords();
+}
+
+/* ---------- 背景自動同步 ---------- */
+setInterval(() => { if (cfg && !syncing && !openRec) cloudSave(); }, 60000);
+if (document.visibilityState !== undefined) {
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && cfg) { cloudLoad().then(() => { if (!openRec) cloudSave(); }); }
+  });
+}
+
 /* ---------- PWA ---------- */
 let deferredPrompt;
 window.addEventListener('beforeinstallprompt', (e) => {
@@ -19,7 +878,6 @@ if ('serviceWorker' in navigator) {
       if (!newSw) return;
       newSw.addEventListener('statechange', () => {
         if (newSw.state === 'installed' && navigator.serviceWorker.controller) {
-          // New version available, force activate and reload
           newSw.postMessage({ type: 'SKIP_WAITING' });
         }
       });
@@ -33,3 +891,15 @@ if ('serviceWorker' in navigator) {
     });
   }).catch(() => {});
 }
+
+/* ---------- 啟動 ---------- */
+if (cfg) {
+  document.getElementById('cfgUser').value = cfg.user;
+  document.getElementById('cfgRepo').value = cfg.repo;
+  document.getElementById('cfgToken').value = cfg.token;
+  cloudLoad().then(() => { if (!openRec) cloudSave(); });
+}
+refresh();
+</script>
+</body>
+</html>
