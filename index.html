@@ -82,7 +82,7 @@
   .session-edit { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:8px; background:#e3f2fd; color:#2980b9; border:none; font-size:14px; cursor:pointer; flex-shrink:0; }
   .session-edit:active { transform:scale(.9); }
   .edit-modal { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; z-index:100; }
-  .edit-box { background:#fff; border-radius:16px; padding:20px; width:90%; max-width:400px; }
+  .edit-box { background:#fff; border-radius:16px; padding:20px; width:90%; max-width:400px; max-height:90vh; overflow-y:auto; }
   .edit-box h3 { margin-bottom:12px; font-size:18px; }
   .edit-box input { width:100%; padding:12px; font-size:15px; border:2px solid #ddd; border-radius:10px; margin-bottom:10px; }
   .edit-box .edit-actions { display:flex; gap:10px; margin-top:10px; }
@@ -494,6 +494,8 @@ function editRec(i) {
   modal.className = 'edit-modal';
   modal.innerHTML = '<div class="edit-box">' +
     '<h3>✎ 編輯打卡記錄</h3>' +
+    '<label style="font-size:13px;color:#888;">工作日期</label>' +
+    '<input id="editDate" type="date" value="' + (r.date || todayStr(new Date(r.in))) + '">' +
     '<label style="font-size:13px;color:#888;">開工時間</label>' +
     '<input id="editIn" type="time" value="' + inStr + '">' +
     '<label style="font-size:13px;color:#888;">收工時間（留空表示未收工）</label>' +
@@ -517,26 +519,36 @@ function closeEdit() {
 
 async function saveEdit(i) {
   const r = records[i];
+  const dateVal = document.getElementById('editDate').value;
   const inVal = document.getElementById('editIn').value;
   const outVal = document.getElementById('editOut').value;
   const moneyVal = document.getElementById('editMoney').value;
   const noteVal = document.getElementById('editNote').value;
 
+  if (!dateVal) { alert('工作日期不能為空！'); return; }
   if (!inVal) { alert('開工時間不能為空！'); return; }
 
+  // 原本收工日比開工日遲幾多日（用嚟處理跨午夜，例如 23:00 → 02:00）
+  const oldIn = new Date(r.in);
+  const dayStart = d => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  let outDayOffset = 0;
+  if (r.out) outDayOffset = Math.round((dayStart(new Date(r.out)) - dayStart(oldIn)) / 86400000);
+
+  const [y, m, d] = dateVal.split('-').map(Number);
   const [inH, inM] = inVal.split(':').map(Number);
-  const inDate = new Date(r.in);
-  inDate.setHours(inH, inM, 0, 0);
+  const inDate = new Date(y, m - 1, d, inH, inM, 0, 0);
   r.in = inDate.getTime();
 
   if (outVal) {
     const [outH, outM] = outVal.split(':').map(Number);
-    const outDate = new Date(r.out || r.in);
-    outDate.setHours(outH, outM, 0, 0);
+    const outDate = new Date(y, m - 1, d + outDayOffset, outH, outM, 0, 0);
+    if (outDate.getTime() <= r.in) outDate.setDate(outDate.getDate() + 1); // 收工早過開工 → 當跨日
     r.out = outDate.getTime();
   } else {
     r.out = null;
   }
+
+  r.date = dateVal;
 
   if (moneyVal !== '') {
     r.money = Math.round(parseFloat(moneyVal) * 10) / 10;
