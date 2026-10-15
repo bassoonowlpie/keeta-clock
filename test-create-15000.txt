@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Keeta Walker 打卡記錄</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#27ae60">
+<style>
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin:0; padding:0; background:#f5f6f8; color:#333; }
+  .container { max-width:600px; margin:0 auto; padding:16px; }
+  h1 { text-align:center; font-size:22px; margin:10px 0 16px; }
+  .btn-group { display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
+  .btn-group button, .btn-group a.btn { flex:1; min-width:120px; padding:14px; border:none; border-radius:12px; font-size:16px; font-weight:700; cursor:pointer; text-align:center; text-decoration:none; display:inline-block; }
+  .btn-in { background:#27ae60; color:#fff; }
+  .btn-out { background:#e74c3c; color:#fff; }
+  .btn-ghost { background:#fff; color:#555; border:1px solid #ddd; }
+  .input-group { display:flex; gap:8px; margin-bottom:12px; align-items:center; flex-wrap:wrap; }
+  .input-group input { flex:1; padding:12px; font-size:16px; border:2px solid #ddd; border-radius:10px; min-width:120px; }
+  .input-group input:focus { border-color:#2980b9; outline:none; }
+  .record-box { margin-top:12px; }
+  .day-card { background:#fff; border-radius:14px; margin-bottom:12px; box-shadow:0 1px 4px rgba(0,0,0,.06); overflow:hidden; }
+  .day-card.today { border:2px solid #27ae60; }
+  .day-header { display:flex; justify-content:space-between; align-items:center; padding:14px 16px; background:#f8f9fa; border-bottom:1px solid #eee; }
+  .day-date { font-size:16px; font-weight:700; color:#222; }
+  .day-date .wday { font-size:12px; font-weight:400; color:#888; margin-left:6px; }
+  .day-total { font-size:18px; font-weight:800; color:#1e8449; }
+  .day-body { padding:12px 16px; }
+  .session-row { display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; padding:10px 0; border-bottom:1px dashed #eee; font-size:15px; }
+  .session-row:last-child { border-bottom:none; }
+  .session-left { display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; flex:1 1 auto; min-width:0; }
+  .session-time { display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; }
+  .session-time .dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .session-time .dot.in { background:#27ae60; }
+  .session-time .dot.out { background:#e74c3c; }
+  .session-time .time-str { font-weight:600; color:#333; font-size:15px; }
+  .session-time .arrow { color:#bbb; font-size:13px; }
+  .session-time .dur { color:#888; font-size:12px; }
+  .session-note { font-size:11px; color:#666; background:#f4f5f7; padding:3px 8px; border-radius:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100px; flex-shrink:1; }
+  .session-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; margin-left:auto; }
+  .session-money { font-weight:700; color:#1e8449; font-size:15px; min-width:52px; text-align:right; }
+  .session-cal { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:8px; background:#fff3e0; color:#e67e22; text-decoration:none; font-size:13px; flex-shrink:0; }
+  .session-del { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:8px; background:#ffecec; color:#c0392b; border:none; font-size:13px; cursor:pointer; flex-shrink:0; }
+  .session-del:active { transform:scale(.9); }
+  .session-edit { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:8px; background:#e3f2fd; color:#2980b9; border:none; font-size:13px; cursor:pointer; flex-shrink:0; }
+  .session-edit:active { transform:scale(.9); }
+  .edit-modal { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; z-index:100; }
+  .edit-box { background:#fff; border-radius:16px; padding:20px; width:90%; max-width:400px; }
+  .edit-box h3 { margin-bottom:12px; font-size:18px; }
+  .edit-box input { width:100%; padding:12px; font-size:15px; border:2px solid #ddd; border-radius:10px; margin-bottom:10px; }
+  .edit-box .edit-actions { display:flex; gap:10px; margin-top:10px; }
+  .edit-box .edit-actions button { flex:1; padding:12px; border:none; border-radius:10px; font-size:15px; font-weight:600; cursor:pointer; }
+  .edit-box .edit-actions .save { background:#27ae60; color:#fff; }
+  .edit-box .edit-actions .cancel { background:#eee; color:#555; }
+  .note-input { width:100%; padding:12px; font-size:15px; border:2px solid #ddd; border-radius:12px; margin-bottom:10px; }
+  .note-input:focus { border-color:#27ae60; outline:none; }
+  .last-money-hint { text-align:center; font-size:13px; color:#2980b9; margin-bottom:8px; min-height:18px; font-weight:600; }
+  .chart-wrap { position:relative; height:260px; margin-top:16px; }
+  .bonus-row2 { display:flex; align-items:center; gap:8px; padding:10px 0; background:#fff8e1; margin:0 -16px; padding-left:16px; padding-right:16px; border-top:1px dashed #f0e0b0; }
+  .bonus-row2 .gift { font-size:16px; }
+  .bonus-row2 .bonus-label { font-size:13px; color:#e67e22; }
+  .bonus-row2 .bonus-amt { font-weight:700; color:#e67e22; font-size:15px; margin-left:auto; }
+  .day-actions { display:flex; gap:8px; padding:10px 16px 14px; }
+  .day-actions .act-btn { flex:1; padding:10px; border-radius:10px; border:none; font-size:14px; font-weight:600; cursor:pointer; text-align:center; text-decoration:none; display:inline-block; }
+  .day-actions .act-btn.del { background:#ffecec; color:#c0392b; }
+  .day-actions .act-btn.cal { background:#fff3e0; color:#e67e22; }
+  .day-actions .act-btn.del-bonus { background:#fff8e1; color:#e67e22; font-size:13px; }
+
+  /* week/month table */
+  .summary-table { width:100%; border-collapse:collapse; font-size:14px; }
+  .summary-table th, .summary-table td { padding:12px 8px; text-align:center; border-bottom:1px solid #eee; }
+  .summary-table th { color:#888; font-weight:600; font-size:13px; background:#f8f9fa; }
+  .summary-table td.money { color:#1e8449; font-weight:700; font-size:15px; }
+
+  /* calendar */
+  .cal-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .cal-table th, .cal-table td { padding:8px 4px; text-align:center; border:1px solid #eee; }
+  .cal-table th { background:#f8f9fa; font-weight:600; color:#888; }
+  .cal-table td { cursor:pointer; height:40px; vertical-align:middle; }
+  .cal-table td.has { background:#e8f5e9; font-weight:700; color:#1e8449; }
+  .cal-table td .cal-amt { font-size:10px; color:#e67e22; font-weight:600; }
+  .cal-nav { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .cal-nav button { background:#fff; border:1px solid #ddd; border-radius:8px; padding:6px 12px; font-size:14px; cursor:pointer; }
+  .cal-title { font-weight:700; font-size:16px; }
+
+  /* config */
+  .config-box { background:#fff; border-radius:14px; padding:16px; margin-top:16px; }
+  .config-box h3 { margin:0 0 10px; font-size:16px; }
+  .config-box input { width:100%; padding:10px; font-size:14px; border:1px solid #ddd; border-radius:8px; margin-bottom:8px; }
+  .config-box button { padding:10px 16px; border:none; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; }
+  .config-box .save { background:#2980b9; color:#fff; }
+  .config-box .clear { background:#eee; color:#555; margin-left:8px; }
+  .sync-status { font-size:12px; color:#888; margin-top:6px; }
+  .msg { text-align:center; font-size:13px; margin-top:8px; min-height:18px; }
+  .msg.ok { color:#27ae60; }
+  .msg.err { color:#e74c3c; }
+
+  /* empty */
+  .empty { text-align:center; padding:40px 20px; color:#888; font-size:15px; }
+
+  /* bonus card */
+  .bonus-card { background:#fff8e1; border-radius:14px; padding:14px 16px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+  .bonus-card .gift { font-size:20px; }
+  .bonus-card .bc-info { flex:1; margin-left:10px; }
+  .bonus-card .bc-date { font-size:14px; font-weight:600; color:#555; }
+  .bonus-card .bc-label { font-size:12px; color:#e67e22; }
+  .bonus-card .bc-amt { font-size:18px; font-weight:800; color:#e67e22; }
+  .bonus-card .bc-del { background:#fff; border:none; border-radius:8px; padding:6px 12px; font-size:14px; cursor:pointer; color:#c0392b; margin-left:8px; }
+
+  /* search */
+  .search-bar { display:flex; gap:8px; margin-bottom:12px; }
+  .search-bar input { flex:1; padding:10px 14px; font-size:15px; border:2px solid #ddd; border-radius:10px; }
+  .search-bar input:focus { border-color:#2980b9; outline:none; }
+  .search-bar button { padding:10px 16px; border:none; border-radius:10px; background:#2980b9; color:#fff; font-size:14px; font-weight:600; cursor:pointer; }
+  .search-bar button.clear { background:#7f8c8d; }
+
+  /* show more */
+  .show-more-btn { display:block; width:100%; padding:14px; text-align:center; background:#f0f2f5; border:none; border-radius:12px; font-size:15px; font-weight:600; color:#555; cursor:pointer; margin-top:8px; }
+  .show-more-btn:active { background:#e4e6e9; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<div class="container">
+  <h1>🛵 Keeta Walker 打卡</h1>
+  <div class="btn-group">
+    <button class="btn-in" onclick="clockIn()">🟢 開工打卡</button>
+    <button class="btn-out" onclick="clockOut()">🔴 收工打卡</button>
+  </div>
+  <div class="input-group">
+    <input id="moneyInput" type="number" inputmode="decimal" min="0" step="0.1" placeholder="今日累計收入 HK$" />
+    <input id="noteInput" type="text" placeholder="備註（可選）" />
+  </div>
+  <div class="last-money-hint" id="lastMoneyHint"></div>
+  <div id="stats"></div>
+  <div class="search-bar">
+    <input id="searchInput" type="text" placeholder="搜尋日期、時間或備註..." onkeyup="if(event.key==='Enter')doSearch()" />
+    <button onclick="doSearch()">🔍 搜尋</button>
+    <button class="clear" onclick="document.getElementById('searchInput').value='';doSearch();">清除</button>
+  </div>
+  <div class="record-box" id="recordBox"></div>
+  <div class="chart-wrap">
+    <canvas id="incomeChart"></canvas>
+  </div>
+  <div class="cal-nav">
+    <button onclick="document.getElementById('calPrev').click()">◀</button>
+    <div class="cal-title" id="calTitle"></div>
+    <button onclick="document.getElementById('calNext').click()">▶</button>
+  </div>
+  <div id="calBox"></div>
+  <div class="config-box">
+    <h3>☁️ 雲端同步設定</h3>
+    <input id="cfgUser" placeholder="GitHub 用戶名" />
+    <input id="cfgRepo" placeholder="倉庫名稱" />
+    <input id="cfgToken" type="password" placeholder="Personal Access Token" />
+    <button class="save" onclick="saveConfig()">儲存設定</button>
+    <button class="clear" onclick="clearConfig()">清除設定</button>
+    <div class="sync-status" id="lastSync"></div>
+    <div class="msg" id="msg"></div>
+  </div>
+  <div style="margin-top:16px; display:flex; gap:8px; flex-wrap:wrap;">
+    <button class="btn-ghost" onclick="exportCSV()">📥 匯出 CSV</button>
+    <button class="btn-ghost" onclick="exportJSON()">📥 匯出 JSON</button>
+    <button class="btn-ghost" onclick="forceSync()">☁️ 強制同步</button>
+    <button class="btn-ghost" onclick="syncFromCloud()">☁️ 從雲端載入</button>
+  </div>
+  <div style="margin-top:16px; background:#fff; border-radius:14px; padding:16px;">
+    <h3 style="margin:0 0 10px; font-size:16px;">🎁 新增獎賞</h3>
+    <input id="bonusDate" type="date" style="width:100%; padding:10px; font-size:14px; border:1px solid #ddd; border-radius:8px; margin-bottom:8px;" />
+    <input id="bonusLabel" placeholder="獎賞名稱" style="width:100%; padding:10px; font-size:14px; border:1px solid #ddd; border-radius:8px; margin-bottom:8px;" />
+    <input id="bonusAmount" type="number" inputmode="decimal" min="0" step="0.1" placeholder="金額 HK$" style="width:100%; padding:10px; font-size:14px; border:1px solid #ddd; border-radius:8px; margin-bottom:8px;" />
+    <button class="btn-ghost" onclick="addBonus()" style="width:100%;">➕ 新增獎賞</button>
+  </div>
+</div>
+
+<script>
+const KEY = 'keeta_walker_records';
+const CFG = 'keeta_walker_cfg';
+const DELETED_KEY = 'keeta_walker_deleted';
+const BONUS_KEY = 'keeta_walker_bonuses';
+let records = JSON.parse(localStorage.getItem(KEY) || '[]');
+let openRec = JSON.parse(localStorage.getItem(KEY + '_open') || 'null');
+let deletedIds = JSON.parse(localStorage.getItem(DELETED_KEY) || '[]');
+let bonuses = JSON.parse(localStorage.getItem(BONUS_KEY) || '[]');
+let cfg = null, cloudSha = null;
+const todayStr = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
+const wday = (d) => '日一二三四五六'[new Date(d).getDay()];
+const fmtTime = (t) => { const d = new Date(t); return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); };
+const fmtDur = (ms) => { const m = Math.floor(ms/60000); const h = Math.floor(m/60); return h + '小時' + (m%60) + '分'; };
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
+function saveLocal() { localStorage.setItem(KEY, JSON.stringify(records)); localStorage.setItem(KEY + '_open', JSON.stringify(openRec)); localStorage.setItem(DELETED_KEY, JSON.stringify(deletedIds)); localStorage.setItem(BONUS_KEY, JSON.stringify(bonuses)); }
+function msg(text, type) { const el = document.getElementById('msg'); el.textContent = text; el.className = type || ''; if (text) setTimeout(() => { el.textContent = ''; el.className = ''; }, 3000); }
+function getLastRecordIdPerDay() { const map = {}; records.forEach(r => { map[r.date] = r.id; }); return map; }
+function dailyIncomeMap() { const map = {}; records.forEach(r => { if (!map[r.date]) map[r.date] = 0; map[r.date] = Math.max(map[r.date], r.money || 0); }); return map; }
+function getDayBonus(date) { return bonuses.filter(b => b.date === date).reduce((s, b) => s + b.amount, 0); }
+function getLastMoney() { const last = records.filter(r => r.money != null).pop(); return last ? last.money : null; }
+function updateLastMoneyHint() { const hint = document.getElementById('lastMoneyHint'); const last = getLastMoney(); hint.textContent = last !== null ? '上次收工金額：HK$' + last.toFixed(1) + '（可作參考）' : ''; }
+function makeCalLink(startMs, endMs, money) { const s = new Date(startMs); const e = new Date(endMs); const fmt = (d) => d.toISOString().replace(/[-:]/g,'').split('.')[0] + 'Z'; return 'https://www.google.com/calendar/render?action=TEMPLATE&text=Keeta+Walker+收工&dates=' + fmt(s) + '/' + fmt(e) + '&details=今日收入+HK$' + (money||0).toFixed(1); }
+function parseLocalDate(d) { return new Date(d + 'T00:00:00'); }
+async function apiGet(path) { const res = await fetch('https://api.github.com/repos/' + cfg.user + '/' + cfg.repo + '/contents/' + path, { headers: { Authorization: 'token ' + cfg.token, Accept: 'application/vnd.github.v3+json' } }); if (res.status === 404) return null; if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); }
+async function apiPut(path, body) { const res = await fetch('https://api.github.com/repos/' + cfg.user + '/' + cfg.repo + '/contents/' + path, { method: 'PUT', headers: { Authorization: 'token ' + cfg.token, Accept: 'application/vnd.github.v3+json', 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); }
+async function cloudLoad() { try { const data = await apiGet('data.json'); if (!data) { msg('雲端沒有資料，開始使用本機資料'); return; } const json = JSON.parse(atob(data.content.replace(/\s/g,''))); if (json.deleted && Array.isArray(json.deleted)) { json.deleted.forEach(id => { if (!deletedIds.includes(id)) deletedIds.push(id); }); } if (json.bonuses && Array.isArray(json.bonuses)) { bonuses = json.bonuses; localStorage.setItem(BONUS_KEY, JSON.stringify(bonuses)); } const cloudRecs = (json.records || []).filter(r => !deletedIds.includes(r.id)); const localIds = new Set(records.map(r => r.id)); const merged = [...records]; cloudRecs.forEach(r => { if (!localIds.has(r.id)) merged.push(r); }); merged.sort((a, b) => a.in - b.in); records = merged; saveLocal(); refresh(); msg('☁️ 已從雲端同步', 'ok'); } catch (e) { msg('雲端載入失敗：' + e.message, 'err'); } }
+async function cloudSave() { try { const payload = { records, deleted: deletedIds, bonuses }; const content = btoa(unescape(encodeURIComponent(JSON.stringify(payload)))); const body = { message: 'update data.json', content, sha: cloudSha }; const res = await apiPut('data.json', body); cloudSha = res.content.sha; msg('☁️ 已同步到雲端', 'ok'); document.getElementById('lastSync').textContent = new Date().toLocaleString(); return true; } catch (e) { msg('雲端同步失敗：' + e.message, 'err'); return false; } }
+async function forceSync() { if (!cfg) { alert('請先在下面設定 GitHub Token'); return; } await cloudSave(); }
+async function syncFromCloud() { if (!cfg) { alert('請先在下面設定 GitHub Token'); return; } await cloudLoad(); }
+function saveConfig() {
+  const user = document.getElementById('cfgUser').value.trim();
+  const repo = document.getElementById('cfgRepo').value.trim();
+  const token = document.getElementById('cfgToken').value.trim();
+  if (!user || !repo || !token) { alert('三項都要填！'); return; }
+  cfg = { user, repo, token };
+  localStorage.setItem(CFG, JSON.stringify(cfg));
+  msg(''); cloudLoad().then(() => cloudSave());
+}
+function clearConfig() {
+  cfg = null; cloudSha = null; deletedIds = []; bonuses = [];
+  localStorage.removeItem(CFG); localStorage.removeItem(DELETED_KEY); localStorage.removeItem(BONUS_KEY);
+  document.getElementById('cfgUser').value = '';
+  document.getElementById('cfgRepo').value = '';
+  document.getElementById('cfgToken').value = '';
+  msg('已清除雲端設定，只用本機模式');
+  document.getElementById('lastSync').textContent = '';
+}
+
+/* ---------- 打卡 ---------- */
+async function clockIn() {
+  if (openRec) { alert('已經開工了！'); return; }
+  openRec = { id: uid(), date: todayStr(), in: Date.now(), out: null, money: null, note: '' };
+  updateLastMoneyHint();
+  saveLocal(); refresh();
+  if (cfg) {
+    const ok = await cloudSave();
+    if (ok) alert('✅ 開工打卡成功！已同步到雲端\n' + fmtTime(openRec.in));
+    else alert('✅ 開工打卡成功！（雲端同步失敗，已保留在本機）\n' + fmtTime(openRec.in));
+  } else alert('✅ 開工打卡成功！' + fmtTime(openRec.in));
+}
+
+async function clockOut() {
+  if (!openRec) { alert('還未開工！'); return; }
+  const v = parseFloat(document.getElementById('moneyInput').value);
+  if (isNaN(v) || v < 0) { alert('請輸入今日累計賺了多少錢！'); return; }
+  openRec.out = Date.now();
+  openRec.money = Math.round(v * 10) / 10;
+  openRec.note = document.getElementById('noteInput').value.trim();
+  records.push(openRec);
+  openRec = null;
+  document.getElementById('moneyInput').value = '';
+  document.getElementById('noteInput').value = '';
+  saveLocal(); refresh();
+  if (cfg) {
+    const ok = await cloudSave();
+    if (ok) alert('✅ 收工打卡成功！已同步到雲端\n今日累計賺了 HK$' + v);
+    else alert('✅ 收工打卡成功！（雲端同步失敗，已保留在本機）\n今日累計賺了 HK$' + v);
+  } else alert('✅ 收工打卡成功！今日累計賺了 HK$' + v);
+}
+
+async function delRec(i) {
+  if (!confirm('確定刪除這條記錄？')) return;
+  const id = records[i].id;
+  records.splice(i, 1);
+  if (!deletedIds.includes(id)) deletedIds.push(id);
+  saveLocal(); refresh();
+  if (cfg) { const ok = await cloudSave(); if (ok) msg('🗑 已刪除並同步到雲端', 'ok'); else msg('🗑 已刪除（雲端同步失敗）', 'err'); }
+  else msg('🗑 已刪除', 'ok');
+}
+
+function editRec(i) {
+  const r = records[i];
+  const inDate = new Date(r.in);
+  const outDate = r.out ? new Date(r.out) : null;
+  const inStr = String(inDate.getHours()).padStart(2,'0') + ':' + String(inDate.getMinutes()).padStart(2,'0');
+  const outStr = outDate ? String(outDate.getHours()).padStart(2,'0') + ':' + String(outDate.getMinutes()).padStart(2,'0') : '';
+  
+  // Create modal
+  const modal = document.createElement('div');
+  modal.className = 'edit-modal';
+  modal.innerHTML = '<div class="edit-box">' +
+    '<h3>✎ 編輯打卡記錄</h3>' +
+    '<label style="font-size:13px;color:#888;">開工時間</label>' +
+    '<input id="editIn" type="time" value="' + inStr + '">' +
+    '<label style="font-size:13px;color:#888;">收工時間（留空表示未收工）</label>' +
+    '<input id="editOut" type="time" value="' + outStr + '">' +
+    '<label style="font-size:13px;color:#888;">收入金額</label>' +
+    '<input id="editMoney" type="number" inputmode="decimal" min="0" step="0.1" value="' + (r.money != null ? r.money : '') + '">' +
+    '<label style="font-size:13px;color:#888;">備註</label>' +
+    '<input id="editNote" type="text" value="' + (r.note || '') + '">' +
+    '<div class="edit-actions">' +
+      '<button class="save" onclick="saveEdit(' + i + ')">💾 儲存</button>' +
+      '<button class="cancel" onclick="closeEdit()">取消</button>' +
+    '</div>' +
+  '</div>';
+  document.body.appendChild(modal);
+}
+
+function closeEdit() {
+  const modal = document.querySelector('.edit-modal');
+  if (modal) modal.remove();
+}
+
+async function saveEdit(i) {
+  const r = records[i];
+  const inVal = document.getElementById('editIn').value;
+  const outVal = document.getElementById('editOut').value;
+  const moneyVal = document.getElementById('editMoney').value;
+  const noteVal = document.getElementById('editNote').value;
+  
+  if (!inVal) { alert('開工時間不能為空！'); return; }
+  
+  const [inH, inM] = inVal.split(':').map(Number);
+  const inDate = new Date(r.in);
+  inDate.setHours(inH, inM, 0, 0);
+  r.in = inDate.getTime();
+  
+  if (outVal) {
+    const [outH, outM] = outVal.split(':').map(Number);
+    const outDate = new Date(r.out || r.in);
+    outDate.setHours(outH, outM, 0, 0);
+    r.out = outDate.getTime();
+  } else {
+    r.out = null;
+  }
+  
+  if (moneyVal !== '') {
+    r.money = Math.round(parseFloat(moneyVal) * 10) / 10;
+  } else {
+    r.money = null;
+  }
+  
+  r.note = noteVal.trim();
+  
+  closeEdit();
+  saveLocal(); refresh();
+  if (cfg) { const ok = await cloudSave(); if (ok) msg('✅ 已儲存並同步到雲端', 'ok'); else msg('✅ 已儲存（雲端同步失敗）', 'err'); }
+  else msg('✅ 已儲存', 'ok');
+}
+
+/* ---------- 導出 ---------- */
+function download(name, content, mime) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], { type: mime }));
+  a.download = name; a.click();
+  URL.revokeObjectURL(a.href);
+}
+function exportCSV() {
+  if (!records.length && !bonuses.length) { alert('還沒有記錄！'); return; }
+  const incMap = dailyIncomeMap();
+  let csv = '\ufeff日期,開工時間,收工時間,工作時數,當日總收入HK$,備註,時段備註\r\n';
+  records.forEach(r => {
+    const lastIds = getLastRecordIdPerDay();
+    const isLastOfDay = lastIds[r.date] === r.id;
+    const note = isLastOfDay ? '當日最後收工' : '';
+    const dur = r.out ? fmtDur(r.out - r.in) : '-';
+    const bonus = getDayBonus(r.date);
+    const total = (r.money || 0) + (isLastOfDay ? bonus : 0);
+    csv += r.date + ',' + fmtTime(r.in) + ',' + (r.out ? fmtTime(r.out) : '') + ',' + dur + ',' + total.toFixed(1) + ',' + note + ',' + (r.note || '') + '\r\n';
+  });
+  bonuses.forEach(b => {
+    csv += b.date + ',,,,,' + '獎賞' + ',' + b.label + '\r\n';
+  });
+  download('keeta_records.csv', csv, 'text/csv');
+}
+
+function exportJSON() {
+  if (!records.length && !bonuses.length) { alert('還沒有記錄！'); return; }
+  const data = { records, bonuses, deleted: deletedIds, exportedAt: new Date().toISOString() };
+  download('keeta_records.json', JSON.stringify(data, null, 2), 'application/json');
+}
+
+/* ---------- 統計 ---------- */
+function calcStats(rangeDays) {
+  const end = new Date(); const start = new Date(); start.setDate(start.getDate() - rangeDays + 1);
+  const days = new Set(); let totalMin = 0; let totalMoney = 0;
+  records.forEach(r => {
+    const d = new Date(r.in);
+    if (d >= start && d <= end) {
+      days.add(r.date);
+      if (r.out) totalMin += (r.out - r.in) / 60000;
+    }
+  });
+  const incMap = dailyIncomeMap();
+  Object.keys(incMap).forEach(d => {
+    const date = new Date(d + 'T00:00:00');
+    if (date >= start && date <= end) totalMoney += incMap[d];
+  });
+  bonuses.forEach(b => {
+    const date = new Date(b.date + 'T00:00:00');
+    if (date >= start && date <= end) totalMoney += b.amount;
+  });
+  return { days: days.size, sessions: records.filter(r => { const d = new Date(r.in); return d >= start && d <= end; }).length, hours: (totalMin/60).toFixed(1), money: totalMoney.toFixed(1) };
+}
+function updateStats() { const s7 = calcStats(7); const s30 = calcStats(30); const el = document.getElementById('stats'); if (!s7.sessions && !s30.sessions) { el.innerHTML = ''; return; } el.innerHTML = '<div style="background:#f0f2f5;border-radius:12px;padding:12px 16px;margin-bottom:12px;font-size:14px;"><strong>📊 統計</strong> ' + '近7日：' + s7.days + '天 / ' + s7.sessions + '段 / ' + s7.hours + '小時 / HK$' + s7.money + '　' + '近30日：' + s30.days + '天 / ' + s30.sessions + '段 / ' + s30.hours + '小時 / HK$' + s30.money + '</div>'; }
+
+/* ---------- 日曆 ---------- */
+function calInit() {
+  const now = new Date(); let y = now.getFullYear(); let m = now.getMonth();
+  const box = document.getElementById('calBox');
+  const title = document.getElementById('calTitle');
+  function render() {
+    title.textContent = y + '年' + (m+1) + '月';
+    const first = new Date(y, m, 1); const last = new Date(y, m+1, 0);
+    const startDay = first.getDay(); const days = last.getDate();
+    const incMap = dailyIncomeMap();
+    let html = '<table class="cal-table"><tr><th>日</th><th>一</th><th>二</th><th>三</th><th>四</th><th>五</th><th>六</th></tr><tr>';
+    for (let i = 0; i < startDay; i++) html += '<td></td>';
+    for (let d = 1; d <= days; d++) {
+      const date = y + '-' + String(m+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+      const has = records.some(r => r.date === date);
+      const money = incMap[date] || 0;
+      const bonus = getDayBonus(date);
+      const cls = has ? 'has' : '';
+      const amt = money + bonus;
+      html += '<td class="' + cls + '" onclick="calClick(\'' + date + '\')">' + d + (amt > 0 ? '<div class="cal-amt">$' + amt.toFixed(0) + '</div>' : '') + '</td>';
+      if ((startDay + d) % 7 === 0) html += '</tr><tr>';
+    }
+    html += '</tr></table>';
+    box.innerHTML = html;
+  }
+  render();
+  document.getElementById('calPrev').onclick = () => { m--; if (m < 0) { m = 11; y--; } render(); };
+  document.getElementById('calNext').onclick = () => { m++; if (m > 11) { m = 0; y++; } render(); };
+}
+function calClick(date) { document.getElementById('searchInput').value = date; doSearch(); }
+
+/* ---------- 搜尋 ---------- */
+function doSearch() {
+  const q = document.getElementById('searchInput').value.trim();
+  if (!q) { view = 'day'; renderRecords(); return; }
+  view = 'search';
+  const lower = q.toLowerCase();
+  const matched = records.filter(r => {
+    return r.date.includes(q) || (r.note && r.note.toLowerCase().includes(lower)) || fmtTime(r.in).includes(q) || (r.out && fmtTime(r.out).includes(q));
+  });
+  const matchedBonuses = bonuses.filter(b => b.date.includes(q) || (b.label && b.label.toLowerCase().includes(lower)));
+  renderSearchResults(matched, matchedBonuses, q);
+}
+function renderSearchResults(matched, matchedBonuses, q) {
+  const box = document.getElementById('recordBox');
+  if (!matched.length && !matchedBonuses.length) { box.innerHTML = '<div class="empty">沒有找到符合「' + q + '」的記錄</div>'; return; }
+  let html = '<div style="margin-bottom:8px;font-size:14px;color:#555;">🔍 找到 ' + matched.length + ' 條記錄' + (matchedBonuses.length ? '、' + matchedBonuses.length + ' 筆獎賞' : '') + '</div>';
+  const dayMap = {};
+  matched.forEach(r => { if (!dayMap[r.date]) dayMap[r.date] = []; dayMap[r.date].push(r); });
+  Object.keys(dayMap).sort().reverse().forEach(date => {
+    const recs = dayMap[date]; const idxs = recs.map(r => records.indexOf(r));
+    html += buildDayCard(date, recs, idxs, true);
+  });
+  matchedBonuses.forEach(b => {
+    html += '<div class="bonus-card"><span class="gift">🎁</span><div class="bc-info"><div class="bc-date">' + b.date + '</div><div class="bc-label">' + b.label + '</div></div><span class="bc-amt">$' + b.amount.toFixed(1) + '</span></div>';
+  });
+  box.innerHTML = html;
+}
+
+/* ---------- 獎賞 ---------- */
+function addBonus() {
+  const date = document.getElementById('bonusDate').value;
+  const label = document.getElementById('bonusLabel').value.trim();
+  const amount = parseFloat(document.getElementById('bonusAmount').value);
+  if (!date || !label || isNaN(amount) || amount <= 0) { alert('請填寫完整獎賞資料！'); return; }
+  bonuses.push({ id: uid(), date, label, amount: Math.round(amount * 10) / 10 });
+  document.getElementById('bonusLabel').value = '';
+  document.getElementById('bonusAmount').value = '';
+  saveLocal(); refresh();
+  if (cfg) { cloudSave().then(ok => { if (ok) msg('🎁 獎賞已新增並同步', 'ok'); else msg('🎁 獎賞已新增（雲端同步失敗）', 'err'); }); }
+  else msg('🎁 獎賞已新增', 'ok');
+}
+function delBonus(id) {
+  if (!confirm('確定刪除這筆獎賞？')) return;
+  bonuses = bonuses.filter(b => b.id !== id);
+  saveLocal(); refresh();
+  if (cfg) { cloudSave().then(ok => { if (ok) msg('🗑 獎賞已刪除並同步', 'ok'); else msg('🗑 獎賞已刪除（雲端同步失敗）', 'err'); }); }
+  else msg('🗑 獎賞已刪除', 'ok');
+}
+
+/* ---------- 圖表 ---------- */
+let chartInstance = null;
+function renderChart() {
+  const canvas = document.getElementById('incomeChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (chartInstance) { chartInstance.destroy(); }
+  const now = new Date(); const labels = []; const data = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+    labels.push((d.getMonth()+1) + '月');
+    const start = new Date(d.getFullYear(), d.getMonth(), 1);
+    const end = new Date(d.getFullYear(), d.getMonth()+1, 0);
+    let monthMoney = 0;
+    const incMap = dailyIncomeMap();
+    Object.keys(incMap).forEach(date => {
+      const dd = new Date(date + 'T00:00:00');
+      if (dd >= start && dd <= end) monthMoney += incMap[date];
+    });
+    bonuses.forEach(b => {
+      const dd = new Date(b.date + 'T00:00:00');
+      if (dd >= start && dd <= end) monthMoney += b.amount;
+    });
+    data.push(monthMoney);
+  }
+  chartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ label: '月收入 (HK$)', data, backgroundColor: '#27ae60', borderRadius: 6 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: v => '$' + v } } } }
+  });
+}
+
+/* ---------- 畫面 ---------- */
+let view = 'day';
+function refresh() { updateStats(); renderRecords(); calInit(); renderChart(); updateLastMoneyHint(); }
+function buildDayCard(date, dayRecs, dayIdxs, isSearchResult) {
+  const lastRec = dayRecs[dayRecs.length - 1];
+  const dayBonusAmt = getDayBonus(date);
+  const today = todayStr();
+  const isToday = date === today;
+
+  let sessionsHtml = '';
+  dayRecs.forEach((r, i) => {
+    const idx = dayIdxs[i];
+    const dur = r.out ? fmtDur(r.out - r.in) : '-';
+    const calLink = r.out ? '<a class="session-cal" href="' + makeCalLink(r.in, r.out, r.money) + '" target="_blank" title="加入行事曆">📅</a>' : '';
+    const delBtn = '<button class="session-del" onclick="delRec(' + idx + ')" title="刪除">✕</button>';
+    const editBtn = '<button class="session-edit" onclick="editRec(' + idx + ')" title="編輯">✎</button>';
+    const noteBadge = r.note ? '<span class="session-note">' + r.note + '</span>' : '';
+    sessionsHtml += '<div class="session-row">' +
+      '<div class="session-left">' +
+        '<div class="session-time">' +
+          '<span class="dot in"></span>' +
+          '<span class="time-str">' + fmtTime(r.in) + '</span>' +
+          '<span class="arrow">→</span>' +
+          '<span class="time-str">' + (r.out ? fmtTime(r.out) : '--:--') + '</span>' +
+          '<span class="dur">(' + dur + ')</span>' +
+        '</div>' +
+        noteBadge +
+      '</div>' +
+      '<div class="session-actions">' +
+        (r.money != null ? '<span class="session-money">$' + r.money.toFixed(1) + '</span>' : '') +
+        calLink +
+        editBtn +
+        delBtn +
+      '</div>' +
+    '</div>';
+  });
+
+  let bonusHtml = '';
+  const dayBonuses = bonuses.filter(b => b.date === date);
+  dayBonuses.forEach(b => {
+    bonusHtml += '<div class="bonus-row2">' +
+      '<span class="gift">🎁</span>' +
+      '<span class="bonus-label">獎賞</span>' +
+      '<span class="bonus-amt">$' + b.amount.toFixed(1) + '</span>' +
+    '</div>';
+  });
+
+  const totalMoney = (lastRec.money || 0) + dayBonusAmt;
+
+  return '<div class="day-card ' + (isToday ? 'today' : '') + '">' +
+    '<div class="day-header">' +
+      '<div class="day-date">' + date + '<span class="wday">星期' + wday(date) + '</span></div>' +
+      '<div class="day-total">$' + totalMoney.toFixed(1) + '</div>' +
+    '</div>' +
+    '<div class="day-body">' + sessionsHtml + '</div>' +
+    (bonusHtml || '') +
+    '<div class="day-actions">' +
+      '<button class="act-btn del" onclick="if(confirm(\'確定刪除這天的所有記錄？\')){[' + dayIdxs.join(',') + '].reverse().forEach(i=>delRec(i))}">🗑 刪除當日全部</button>' +
+    '</div>' +
+  '</div>';
+}
+function renderRecords() {
+  const box = document.getElementById('recordBox');
+  if (!records.length && !bonuses.length) { box.innerHTML = '<div class="empty">還沒有記錄，快開工打卡吧！</div>'; return; }
+
+  if (view === 'day') {
+    // Group records by date
+    const dayMap = {};
+    records.forEach((r, idx) => {
+      if (!dayMap[r.date]) dayMap[r.date] = { recs: [], idxs: [] };
+      dayMap[r.date].recs.push(r);
+      dayMap[r.date].idxs.push(idx);
+    });
+    let html = '';
+    Object.keys(dayMap).sort().reverse().forEach(date => {
+      html += buildDayCard(date, dayMap[date].recs, dayMap[date].idxs, false);
+    });
+    box.innerHTML = html;
+  }
+}
+
+/* ---------- 初始化 ---------- */
+function init() {
+  const saved = localStorage.getItem(CFG);
+  if (saved) {
+    cfg = JSON.parse(saved);
+    document.getElementById('cfgUser').value = cfg.user;
+    document.getElementById('cfgRepo').value = cfg.repo;
+    document.getElementById('cfgToken').value = cfg.token;
+    cloudLoad();
+  }
+  refresh();
+}
+window.onload = init;
+</script>
+</body>
+</html>
