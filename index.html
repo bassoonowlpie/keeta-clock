@@ -340,7 +340,13 @@ function mergeRecords(localRecs, cloudRecs) {
   (cloudRecs || []).forEach(r => {
     if (deletedIds.includes(r.id)) return;
     if (!map[r.id]) map[r.id] = r;
-    else if ((r.out||r.in) > (map[r.id].out||map[r.id].in)) map[r.id] = r;
+    else {
+      const local = map[r.id];
+      const localEdit = local._editedAt || 0;
+      const cloudEdit = r._editedAt || 0;
+      if (cloudEdit > localEdit) map[r.id] = r;
+      else if (cloudEdit === localEdit && (r.out||r.in) > (local.out||local.in)) map[r.id] = r;
+    }
   });
   return Object.values(map).sort((a,b) => a.in - b.in);
 }
@@ -350,6 +356,12 @@ function mergeBonuses(localBonuses, cloudBonuses) {
   (cloudBonuses || []).forEach(b => {
     if (deletedIds.includes(b.id)) return;
     if (!map[b.id]) map[b.id] = b;
+    else {
+      const local = map[b.id];
+      const localEdit = local._editedAt || 0;
+      const cloudEdit = b._editedAt || 0;
+      if (cloudEdit > localEdit) map[b.id] = b;
+    }
   });
   return Object.values(map);
 }
@@ -533,6 +545,7 @@ async function saveEdit(i) {
   }
 
   r.note = noteVal.trim();
+  r._editedAt = Date.now();
 
   closeEdit();
   saveLocal(); refresh();
@@ -872,7 +885,6 @@ function installPWA() {
 }
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').then(reg => {
-    // Auto-update: when new SW is found, skip waiting and reload
     reg.addEventListener('updatefound', () => {
       const newSw = reg.installing;
       if (!newSw) return;
@@ -882,7 +894,6 @@ if ('serviceWorker' in navigator) {
         }
       });
     });
-    // When new SW takes control, reload page
     let refreshing = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       if (refreshing) return;
