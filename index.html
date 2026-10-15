@@ -6,6 +6,9 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
+<meta name="theme-color" content="#27ae60">
+<link rel="manifest" href="manifest.json">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <title>Keeta步兵打卡器</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; font-family:"PingFang HK","Microsoft JhengHei",sans-serif; }
@@ -62,7 +65,7 @@
   .day-body { padding:12px 16px; }
   .session-row { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px dashed #eee; font-size:15px; }
   .session-row:last-child { border-bottom:none; }
-  .session-time { display:flex; align-items:center; gap:8px; flex:1; }
+  .session-time { display:flex; align-items:center; gap:8px; flex:1; min-width:0; }
   .session-time .dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
   .session-time .dot.in { background:#27ae60; }
   .session-time .dot.out { background:#e74c3c; }
@@ -70,8 +73,14 @@
   .session-time .arrow { color:#bbb; font-size:14px; }
   .session-time .dur { color:#888; font-size:13px; }
   .session-money { font-weight:700; color:#1e8449; font-size:15px; }
-  .session-cal { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:8px; background:#fff3e0; color:#e67e22; text-decoration:none; font-size:14px; flex-shrink:0; }
-  .session-del { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:8px; background:#ffecec; color:#c0392b; border:none; font-size:14px; flex-shrink:0; cursor:pointer; }
+  .session-cal { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:8px; background:#fff3e0; color:#e67e22; text-decoration:none; font-size:14px; flex-shrink:0; }
+  .session-del { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:8px; background:#ffecec; color:#c0392b; border:none; font-size:14px; cursor:pointer; flex-shrink:0; }
+  .session-del:active { transform:scale(.9); }
+  .session-note { font-size:12px; color:#666; background:#f4f5f7; padding:4px 8px; border-radius:6px; margin-left:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:120px; }
+  .note-input { width:100%; padding:12px; font-size:15px; border:2px solid #ddd; border-radius:12px; margin-bottom:10px; }
+  .note-input:focus { border-color:#27ae60; outline:none; }
+  .last-money-hint { text-align:center; font-size:13px; color:#2980b9; margin-bottom:8px; min-height:18px; font-weight:600; }
+  .chart-wrap { position:relative; height:260px; margin-top:16px; }
   .bonus-row2 { display:flex; align-items:center; gap:8px; padding:10px 0; background:#fff8e1; margin:0 -16px; padding-left:16px; padding-right:16px; border-top:1px dashed #f0e0b0; }
   .bonus-row2 .gift { font-size:16px; }
   .bonus-row2 .bonus-label { font-size:13px; color:#e67e22; }
@@ -115,7 +124,9 @@
 <div class="card">
   <div id="statusBox" class="status off">未開工<small></small></div>
   <button id="btnIn" class="btn btn-in" onclick="clockIn()">📍 開工打卡</button>
+  <div id="lastMoneyHint" class="last-money-hint"></div>
   <input id="moneyInput" class="money-input" type="number" inputmode="decimal" min="0" step="0.1" placeholder="收工請輸入今日累計賺了多少錢（HK$）">
+  <input id="noteInput" class="note-input" type="text" placeholder="備註（例如：天氣、單量、地區…）">
   <button id="btnOut" class="btn btn-out" onclick="clockOut()" disabled>🏁 收工打卡</button>
   <div id="syncMsg" class="sync-msg"></div>
   <div class="sync-row">
@@ -150,6 +161,7 @@
     <button class="btn btn-small" onclick="exportCSV()">📄 導出 CSV</button>
     <button class="btn btn-small btn-gray" onclick="exportJSON()">📄 導出 JSON</button>
   </div>
+  <button id="installBtn" class="btn btn-small btn-blue" style="display:none;margin-top:10px;" onclick="installPWA()">📲 加到主畫面</button>
 </div>
 
 <div class="card">
@@ -228,6 +240,16 @@ function bonusMsg(text, type) {
 function setLastSync() {
   const el = document.getElementById('lastSync');
   el.textContent = '最後同步：' + fmtTime(Date.now());
+}
+function getLastMoney() {
+  const today = todayStr();
+  const todayRecs = records.filter(r => r.date === today && r.money != null);
+  return todayRecs.length ? todayRecs[todayRecs.length - 1].money : null;
+}
+function updateLastMoneyHint() {
+  const hint = document.getElementById('lastMoneyHint');
+  const last = getLastMoney();
+  hint.textContent = last != null ? '上次輸入 $' + last.toFixed(1) + '（供參考）' : '';
 }
 
 /* ---------- Google Calendar ---------- */
@@ -396,7 +418,8 @@ function clearConfig() {
 /* ---------- 打卡 ---------- */
 async function clockIn() {
   if (openRec) { alert('已經開工了！'); return; }
-  openRec = { id: uid(), date: todayStr(), in: Date.now(), out: null, money: null };
+  openRec = { id: uid(), date: todayStr(), in: Date.now(), out: null, money: null, note: '' };
+  updateLastMoneyHint();
   saveLocal(); refresh();
   if (cfg) {
     const ok = await cloudSave();
@@ -411,9 +434,11 @@ async function clockOut() {
   if (isNaN(v) || v < 0) { alert('請輸入今日累計賺了多少錢！'); return; }
   openRec.out = Date.now();
   openRec.money = Math.round(v * 10) / 10;
+  openRec.note = document.getElementById('noteInput').value.trim();
   records.push(openRec);
   openRec = null;
   document.getElementById('moneyInput').value = '';
+  document.getElementById('noteInput').value = '';
   saveLocal(); refresh();
   if (cfg) {
     const ok = await cloudSave();
@@ -442,12 +467,12 @@ function download(name, content, mime) {
 function exportCSV() {
   if (!records.length && !bonuses.length) { alert('還沒有記錄！'); return; }
   const incMap = dailyIncomeMap();
-  let csv = '\ufeff日期,開工時間,收工時間,工作時數,當日總收入HK$,備註\r\n';
+  let csv = '\ufeff日期,開工時間,收工時間,工作時數,當日總收入HK$,備註,時段備註\r\n';
   records.forEach(r => {
     const lastIds = getLastRecordIdPerDay();
     const isLastOfDay = lastIds[r.date] === r.id;
     const note = isLastOfDay ? '當日最後收工' : '';
-    csv += [r.date, fmtTime(r.in), r.out ? fmtTime(r.out) : '', r.out ? ((r.out-r.in)/3600000).toFixed(2) : '', r.money, note].join(',') + '\r\n';
+    csv += [r.date, fmtTime(r.in), r.out ? fmtTime(r.out) : '', r.out ? ((r.out-r.in)/3600000).toFixed(2) : '', r.money, note, r.note || ''].join(',') + '\r\n';
   });
   if (bonuses.length) {
     csv += '\r\n獎賞記錄\r\n日期,金額\r\n';
@@ -504,6 +529,7 @@ function buildDayCard(date, dayRecs, dayIdxs, isSearchResult) {
     const dur = r.out ? fmtDur(r.out - r.in) : '-';
     const calLink = r.out ? '<a class="session-cal" href="' + makeCalLink(r.in, r.out, r.money) + '" target="_blank" title="加入行事曆">📅</a>' : '';
     const delBtn = '<button class="session-del" onclick="delRec(' + idx + ')" title="刪除">✕</button>';
+    const noteBadge = r.note ? '<span class="session-note">' + r.note + '</span>' : '';
     sessionsHtml += '<div class="session-row">' +
       '<div class="session-time">' +
         '<span class="dot in"></span>' +
@@ -511,6 +537,7 @@ function buildDayCard(date, dayRecs, dayIdxs, isSearchResult) {
         '<span class="arrow">→</span>' +
         '<span class="time-str">' + (r.out ? fmtTime(r.out) : '--:--') + '</span>' +
         '<span class="dur">(' + dur + ')</span>' +
+        noteBadge +
       '</div>' +
       (r.money != null ? '<span class="session-money">$' + r.money.toFixed(1) + '</span>' : '') +
       calLink +
@@ -658,14 +685,51 @@ function renderRecords() {
       html += '<tr><td>' + k + '</td><td>' + g.days.size + '日</td><td>' + g.hours.toFixed(1) + 'h</td><td class="money">$' + g.money.toFixed(1) + '</td></tr>';
     });
     html += '</table>';
-    box.innerHTML = html;
+    if (view === 'month') {
+      html += '<div class="chart-wrap"><canvas id="monthChart"></canvas></div>';
+      box.innerHTML = html;
+      renderMonthChart(groups);
+    } else {
+      box.innerHTML = html;
+    }
   }
+}
+function renderMonthChart(groups) {
+  const canvas = document.getElementById('monthChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const labels = Object.keys(groups).sort().reverse().slice(0, 6).reverse();
+  const data = labels.map(k => groups[k].money);
+  if (window._monthChart) window._monthChart.destroy();
+  window._monthChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: '收入 HK$',
+        data: data,
+        backgroundColor: 'rgba(39, 174, 96, 0.6)',
+        borderColor: '#27ae60',
+        borderWidth: 1,
+        borderRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { callback: function(v) { return '$' + v; } } }
+      }
+    }
+  });
 }
 function refresh() {
   const st = document.getElementById('statusBox');
   const btnIn = document.getElementById('btnIn');
   const btnOut = document.getElementById('btnOut');
   if (openRec) {
+    updateLastMoneyHint();
     st.className = 'status on';
     st.innerHTML = '✅ 開工中<small>' + openRec.date + ' ' + fmtTime(openRec.in) + ' 開工</small>';
     btnIn.disabled = true; btnOut.disabled = false;
@@ -673,6 +737,7 @@ function refresh() {
     st.className = 'status off';
     st.innerHTML = '🔴 未開工<small></small>';
     btnIn.disabled = false; btnOut.disabled = true;
+    document.getElementById('lastMoneyHint').textContent = '';
   }
   const hours = records.reduce((s,r) => s + (r.out ? (r.out - r.in) : 0), 0) / 3600000;
   const total = sumDailyIncome();
@@ -701,6 +766,23 @@ if (document.visibilityState !== undefined) {
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && cfg) { cloudLoad().then(() => { if (!openRec) cloudSave(); }); }
   });
+}
+
+/* ---------- PWA ---------- */
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const btn = document.getElementById('installBtn');
+  if (btn) btn.style.display = 'block';
+});
+function installPWA() {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(() => { deferredPrompt = null; });
+}
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 
 /* ---------- 啟動 ---------- */
