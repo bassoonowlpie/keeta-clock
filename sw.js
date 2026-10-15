@@ -1,7 +1,5 @@
-const CACHE_NAME = 'keeta-clock-v1';
+const CACHE_NAME = 'keeta-clock-v2';
 const URLS_TO_CACHE = [
-  './',
-  './index.html',
   'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'
 ];
 
@@ -22,10 +20,30 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  const req = event.request;
+  const url = new URL(req.url);
+
+  // For the main page (index.html or /keeta-clock/), always fetch from network first
+  if (req.mode === 'navigate' || url.pathname.endsWith('index.html') || url.pathname.endsWith('/')) {
+    event.respondWith(
+      fetch(req).then((response) => {
+        // Update cache with fresh copy
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(req, clone));
+        return response;
+      }).catch(() => {
+        // Fallback to cache if offline
+        return caches.match(req);
+      })
+    );
+    return;
+  }
+
+  // For other assets (chart.js, etc.), use cache-first for offline support
   event.respondWith(
-    caches.match(event.request).then((response) => {
+    caches.match(req).then((response) => {
       if (response) return response;
-      return fetch(event.request).catch(() => {});
+      return fetch(req).catch(() => {});
     })
   );
 });
