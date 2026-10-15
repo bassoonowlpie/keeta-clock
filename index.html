@@ -117,6 +117,9 @@
   .bonus-row2 .gift { font-size:16px; }
   .bonus-row2 .bonus-label { font-size:13px; color:#e67e22; }
   .bonus-row2 .bonus-amt { font-weight:700; color:#e67e22; font-size:15px; margin-left:auto; }
+  .bonus-row2 .bonus-del { width:26px; height:26px; flex-shrink:0; border:none; border-radius:8px; background:rgba(255,255,255,.75); color:#c0392b; font-size:13px; cursor:pointer; }
+  .bonus-row2 .bonus-del:active { transform:scale(.9); }
+  body.dark .bonus-row2 .bonus-del { background:rgba(0,0,0,.25); color:#ff8a80; }
   .day-actions { display:flex; gap:8px; padding:10px 16px 14px; }
   .day-actions .act-btn { flex:1; padding:10px; border-radius:10px; border:none; font-size:14px; font-weight:600; cursor:pointer; text-align:center; text-decoration:none; display:inline-block; }
   .day-actions .act-btn.del { background:#ffecec; color:#c0392b; }
@@ -715,6 +718,7 @@ function buildDayCard(date, dayRecs, dayIdxs, isSearchResult) {
       '<span class="gift">🎁</span>' +
       '<span class="bonus-label">獎賞</span>' +
       '<span class="bonus-amt">$' + b.amount.toFixed(1) + '</span>' +
+      '<button class="bonus-del" onclick="delBonus(\'' + b.id + '\')" title="刪除呢筆獎賞">✕</button>' +
     '</div>';
   });
 
