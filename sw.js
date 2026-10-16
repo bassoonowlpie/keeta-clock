@@ -1,6 +1,11 @@
-const CACHE_NAME = 'keeta-clock-v2';
+const CACHE_NAME = 'keeta-clock-v3';
 const URLS_TO_CACHE = [
-  'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'
+  'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js',
+  './manifest.json',
+  './icon-192.png',
+  './icon-512.png',
+  './apple-touch-icon.png',
+  './favicon.png'
 ];
 
 self.addEventListener('install', (event) => {

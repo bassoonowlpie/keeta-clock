@@ -3,18 +3,26 @@
   "short_name": "Keeta打卡",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#f4f5f7",
-  "theme_color": "#27ae60",
+  "background_color": "#f1f4f4",
+  "theme_color": "#0f766e",
   "icons": [
     {
-      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect fill='%2327ae60' width='192' height='192' rx='24'/%3E%3Ctext x='96' y='120' font-size='100' text-anchor='middle' fill='white'%3E🛵%3C/text%3E%3C/svg%3E",
+      "src": "icon-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect fill='%2327ae60' width='512' height='512' rx='64'/%3E%3Ctext x='256' y='320' font-size='280' text-anchor='middle' fill='white'%3E🛵%3C/text%3E%3C/svg%3E",
+      "src": "icon-512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
