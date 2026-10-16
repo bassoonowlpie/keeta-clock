@@ -1,11 +1,7 @@
-const CACHE_NAME = 'keeta-clock-v3';
+const CACHE_NAME = 'keeta-clock-v4';
 const URLS_TO_CACHE = [
   'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js',
-  './manifest.json',
-  './icon-192.png',
-  './icon-512.png',
-  './apple-touch-icon.png',
-  './favicon.png'
+  './manifest.json'
 ];
 
 self.addEventListener('install', (event) => {
@@ -46,6 +42,18 @@ self.addEventListener('fetch', (event) => {
         // Fallback to cache if offline
         return caches.match(req);
       })
+    );
+    return;
+  }
+
+  // manifest 同圖標要永遠攞最新，否則 PWA 安裝會繼續用舊圖標
+  if (url.pathname.endsWith('manifest.json') || url.pathname.endsWith('.png')) {
+    event.respondWith(
+      fetch(req).then((response) => {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(req, clone));
+        return response;
+      }).catch(() => caches.match(req))
     );
     return;
   }
