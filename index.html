@@ -118,6 +118,8 @@
   .bonus-row2 .bonus-label { font-size:13px; color:#e67e22; }
   .bonus-row2 .bonus-amt { font-weight:700; color:#e67e22; font-size:15px; margin-left:auto; }
   .bonus-row2 .bonus-del { width:26px; height:26px; flex-shrink:0; border:none; border-radius:8px; background:rgba(255,255,255,.75); color:#c0392b; font-size:13px; cursor:pointer; }
+  .bonus-row2 .bonus-edit { color:var(--blue); }
+  .bonus-card .bc-edit { background:var(--card); border:none; border-radius:8px; padding:6px 12px; font-size:14px; cursor:pointer; color:var(--blue); margin-left:8px; }
   .bonus-row2 .bonus-del:active { transform:scale(.9); }
   body.dark .bonus-row2 .bonus-del { background:rgba(0,0,0,.25); color:#ff8a80; }
   .day-actions { display:flex; gap:8px; padding:10px 16px 14px; }
@@ -331,9 +333,9 @@ function getDayBonus(date) {
 function dailyIncomeMap() {
   const map = {};
   records.forEach(r => { if (r.money != null) map[r.date] = r.money; });
+  // 收工輸入嘅總收入已包含獎賞 → 有輸入過總收入嘅日子唔再疊加
   bonuses.forEach(b => {
-    if (map[b.date] != null) map[b.date] += b.amount;
-    else map[b.date] = b.amount;
+    if (map[b.date] == null) map[b.date] = b.amount;
   });
   return map;
 }
@@ -367,6 +369,43 @@ async function addBonus() {
   saveLocal(); refresh();
   bonusMsg('✅ 已加入今日獎賞 HK$' + v, 'ok');
   if (cfg) await cloudSave();
+}
+let editingBonusId = null;
+function editBonus(id) {
+  const b = bonuses.find(x => x.id === id);
+  if (!b) return;
+  editingBonusId = id;
+  const lbl = 'font-size:13px;color:var(--muted);';
+  const modal = document.createElement('div');
+  modal.className = 'edit-modal';
+  modal.innerHTML = '<div class="edit-box">' +
+    '<h3>✎ 編輯獎賞</h3>' +
+    '<label style="' + lbl + '">獎賞日期</label>' +
+    '<input id="bonusDate" type="date" value="' + b.date + '">' +
+    '<label style="' + lbl + '">金額（HK$）</label>' +
+    '<input id="bonusAmt" type="number" inputmode="decimal" min="0" step="0.1" value="' + b.amount + '">' +
+    '<div class="edit-actions">' +
+      '<button class="save" onclick="saveBonusEdit()">💾 儲存</button>' +
+      '<button class="cancel" onclick="closeEdit()">取消</button>' +
+    '</div>' +
+  '</div>';
+  document.body.appendChild(modal);
+}
+async function saveBonusEdit() {
+  const b = bonuses.find(x => x.id === editingBonusId);
+  if (!b) { closeEdit(); return; }
+  const dv = document.getElementById('bonusDate').value;
+  const av = document.getElementById('bonusAmt').value;
+  if (!dv) { alert('日期不能為空！'); return; }
+  const v = parseFloat(av);
+  if (isNaN(v) || v <= 0) { alert('請輸入有效金額！'); return; }
+  b.date = dv;
+  b.amount = Math.round(v * 10) / 10;
+  b._editedAt = Date.now();
+  closeEdit();
+  saveLocal(); refresh();
+  if (cfg) { const ok = await cloudSave(); if (ok) msg('✅ 已更新獎賞並同步到雲端', 'ok'); else msg('✅ 已更新獎賞（雲端同步失敗）', 'err'); }
+  else msg('✅ 已更新獎賞', 'ok');
 }
 async function delBonus(id) {
   if (!confirm('確定刪除這個獎賞？')) return;
@@ -428,6 +467,9 @@ async function cloudLoad() {
     bonuses = mergeBonuses(bonuses, cloudData.bonuses);
     if (cloudData.openRec && !deletedIds.includes(cloudData.openRec.id)) {
       if (!openRec || cloudData.openRec.in > openRec.in) openRec = cloudData.openRec;
+    } else if (openRec && records.some(r => r.id === openRec.id)) {
+      // 雲端已冇開工中記錄，而本機嗰個時段已經出現喺記錄入面（即已收工）→ 清除開工中狀態
+      openRec = null;
     }
     saveLocal(); refresh();
     msg('✅ 已從雲端同步 ' + records.length + ' 條記錄', 'ok');
@@ -677,6 +719,18 @@ function showMore() {
   daysToShow += 5;
   renderRecords();
 }
+function buildBonusCard(b) {
+  return '<div class="bonus-card">' +
+    '<span class="gift">🎁</span>' +
+    '<div class="bc-info">' +
+      '<div class="bc-date">' + b.date + ' 星期' + wday(b.date) + '</div>' +
+      '<div class="bc-label">獎賞</div>' +
+    '</div>' +
+    '<div class="bc-amt">$' + b.amount.toFixed(1) + '</div>' +
+    '<button class="bc-edit" onclick="editBonus(\'' + b.id + '\')" title="編輯獎賞日子／金額">✎</button>' +
+    '<button class="bc-del" onclick="delBonus(\'' + b.id + '\')" title="刪除">✕</button>' +
+  '</div>';
+}
 function buildDayCard(date, dayRecs, dayIdxs, isSearchResult) {
   const lastRec = dayRecs[dayRecs.length - 1];
   const dayBonusAmt = getDayBonus(date);
@@ -718,11 +772,12 @@ function buildDayCard(date, dayRecs, dayIdxs, isSearchResult) {
       '<span class="gift">🎁</span>' +
       '<span class="bonus-label">獎賞</span>' +
       '<span class="bonus-amt">$' + b.amount.toFixed(1) + '</span>' +
+      '<button class="bonus-del bonus-edit" onclick="editBonus(\'' + b.id + '\')" title="編輯呢筆獎賞">✎</button>' +
       '<button class="bonus-del" onclick="delBonus(\'' + b.id + '\')" title="刪除呢筆獎賞">✕</button>' +
     '</div>';
   });
 
-  const totalMoney = (lastRec.money || 0) + dayBonusAmt;
+  const totalMoney = lastRec.money != null ? lastRec.money : dayBonusAmt;
 
   return '<div class="day-card ' + (isToday ? 'today' : '') + '">' +
     '<div class="day-header">' +
@@ -771,45 +826,22 @@ function renderRecords() {
       displayDates = allDates.slice(0, daysToShow);
     }
 
+    // 組合 day cards 同孤立獎賞卡，一齊按日期排（最新喺頂）
+    const items = [];
     displayDates.forEach(date => {
       const day = dayMap[date];
-      html += buildDayCard(date, day.records, day.indices, !!searchDateVal);
+      items.push({ date: date, html: buildDayCard(date, day.records, day.indices, !!searchDateVal) });
     });
 
-    // Orphan bonuses (dates with bonuses but no work records)
-    if (!searchDateVal) {
-      const workDates = new Set(allDates);
-      const orphanBonuses = bonuses.filter(b => !workDates.has(b.date));
-      // Only show orphan bonuses within the date range we're displaying
-      const shownDates = new Set(displayDates);
-      orphanBonuses.forEach(b => {
-        if (shownDates.has(b.date) || allDates.indexOf(b.date) < daysToShow) {
-          html += '<div class="bonus-card">' +
-            '<span class="gift">🎁</span>' +
-            '<div class="bc-info">' +
-              '<div class="bc-date">' + b.date + ' 星期' + wday(b.date) + '</div>' +
-              '<div class="bc-label">獎賞</div>' +
-            '</div>' +
-            '<div class="bc-amt">$' + b.amount.toFixed(1) + '</div>' +
-            '<button class="bc-del" onclick="delBonus(\'' + b.id + '\')">✕</button>' +
-          '</div>';
-        }
-      });
-    } else {
-      // Search mode: also show matching orphan bonuses
-      const orphanMatch = bonuses.filter(b => b.date === searchDateVal && !dayMap[searchDateVal]);
-      orphanMatch.forEach(b => {
-        html += '<div class="bonus-card">' +
-          '<span class="gift">🎁</span>' +
-          '<div class="bc-info">' +
-            '<div class="bc-date">' + b.date + ' 星期' + wday(b.date) + '</div>' +
-            '<div class="bc-label">獎賞</div>' +
-          '</div>' +
-          '<div class="bc-amt">$' + b.amount.toFixed(1) + '</div>' +
-          '<button class="bc-del" onclick="delBonus(\'' + b.id + '\')">✕</button>' +
-        '</div>';
-      });
-    }
+    // 孤立獎賞（嗰日仲未開工，或者冇開工記錄嘅獎賞）
+    const workDates = new Set(allDates);
+    bonuses.filter(b => !workDates.has(b.date)).forEach(b => {
+      const show = searchDateVal ? (b.date === searchDateVal) : (allDates.indexOf(b.date) < daysToShow);
+      if (show) items.push({ date: b.date, html: buildBonusCard(b) });
+    });
+
+    items.sort((a, b) => b.date.localeCompare(a.date));
+    items.forEach(it => { html += it.html; });
 
     // Show more button
     if (!searchDateVal && allDates.length > daysToShow) {
