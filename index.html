@@ -145,7 +145,7 @@
 
   /* search & show more */
   .search-bar { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; align-items:flex-end; }
-  .search-field { flex:1 1 45%; min-width:130px; display:flex; flex-direction:column; gap:3px; font-size:12px; font-weight:600; color:var(--muted); }
+  .search-field { flex:1 1 auto; min-width:150px; display:flex; flex-direction:column; gap:3px; font-size:12px; font-weight:600; color:var(--muted); }
   .search-bar input { width:100%; padding:10px 14px; font-size:15px; border:2px solid var(--border2); background:var(--input-bg); color:var(--text); border-radius:10px; }
   .search-bar input:focus { border-color:#2980b9; outline:none; }
   .search-bar button { padding:10px 16px; border:none; border-radius:10px; background:#2980b9; color:#fff; font-size:14px; font-weight:600; cursor:pointer; }
@@ -215,9 +215,6 @@
     <label class="search-field">搜尋日子
       <input id="searchDate" type="date" title="睇指定日子嘅記錄" onchange="doSearch()">
     </label>
-    <label class="search-field">搜尋月份
-      <input id="searchMonth" type="month" placeholder="YYYY-MM" title="睇成個月份嘅記錄" onchange="doSearch()">
-    </label>
     <button onclick="doSearch()">🔍 搜尋</button>
     <button class="clear" onclick="clearSearch()">清除</button>
   </div>
@@ -255,7 +252,6 @@ let cloudSha = null;
 let syncing = false;
 let daysToShow = 5;
 let searchDateVal = '';
-let searchMonthVal = '';
 
 function saveLocal() {
   localStorage.setItem(KEY, JSON.stringify(records));
@@ -712,20 +708,13 @@ function switchTab(v, el) {
   renderRecords();
 }
 function doSearch() {
-  let d = document.getElementById('searchDate').value || '';
-  let m = document.getElementById('searchMonth').value || '';
-  // 兩個只會用一個：揀咗日子就清月份，反之亦然
-  if (d && m) { m = ''; document.getElementById('searchMonth').value = ''; }
-  searchDateVal = d;
-  searchMonthVal = m;
+  searchDateVal = document.getElementById('searchDate').value || '';
   daysToShow = 5;
   renderRecords();
 }
 function clearSearch() {
   document.getElementById('searchDate').value = '';
-  document.getElementById('searchMonth').value = '';
   searchDateVal = '';
-  searchMonthVal = '';
   daysToShow = 5;
   renderRecords();
 }
@@ -835,9 +824,6 @@ function renderRecords() {
         box.innerHTML = '<div class="empty">🔍 搵唔到 ' + searchDateVal + ' 嘅記錄</div>';
         return;
       }
-    } else if (searchMonthVal) {
-      // 月份模式：唔受 daysToShow 限制，顯示嗰個月所有有記錄嘅日子
-      displayDates = allDates.filter(d => d.indexOf(searchMonthVal) === 0).sort().reverse();
     } else {
       displayDates = allDates.slice(0, daysToShow);
     }
@@ -853,21 +839,15 @@ function renderRecords() {
     const workDates = new Set(allDates);
     bonuses.filter(b => !workDates.has(b.date)).forEach(b => {
       const show = searchDateVal ? (b.date === searchDateVal)
-                 : searchMonthVal ? (b.date.indexOf(searchMonthVal) === 0)
                  : (allDates.indexOf(b.date) < daysToShow);
       if (show) items.push({ date: b.date, html: buildBonusCard(b) });
     });
-
-    if (searchMonthVal && !items.length) {
-      box.innerHTML = '<div class="empty">🔍 搵唔到 ' + searchMonthVal + ' 嘅記錄</div>';
-      return;
-    }
 
     items.sort((a, b) => b.date.localeCompare(a.date));
     items.forEach(it => { html += it.html; });
 
     // Show more button
-    if (!searchDateVal && !searchMonthVal && allDates.length > daysToShow) {
+    if (!searchDateVal && allDates.length > daysToShow) {
       const remaining = allDates.length - daysToShow;
       html += '<button class="show-more-btn" onclick="showMore()">🔽 顯示更多 (' + remaining + ' 天)</button>';
     }
