@@ -533,10 +533,15 @@ async function cloudLoad() {
     (cloudData.deletedIds || []).forEach(id => { if (!deletedIds.includes(id)) deletedIds.push(id); });
     records = mergeRecords(records, cloudData.records);
     bonuses = mergeBonuses(bonuses, cloudData.bonuses);
-    if (cloudData.openRec && !deletedIds.includes(cloudData.openRec.id)) {
-      if (!openRec || cloudData.openRec.in > openRec.in) openRec = cloudData.openRec;
-    } else if (openRec && records.some(r => r.id === openRec.id)) {
-      // 雲端已冇開工中記錄，而本機嗰個時段已經出現喺記錄入面（即已收工）→ 清除開工中狀態
+    // 判斷一筆時段係咪已經收工（id 一樣，或者開工時間一樣但有收工時間）
+    const isDone = (rec) => records.some(r => r.id === rec.id || (r.in === rec.in && r.out != null));
+    // 雲端嘅「開工中」如果其實已經收咗工（id 已落入 records），就當佢冇
+    const cloudOpen = (cloudData.openRec && !deletedIds.includes(cloudData.openRec.id) && !isDone(cloudData.openRec))
+      ? cloudData.openRec : null;
+    if (cloudOpen) {
+      if (!openRec || cloudOpen.in > openRec.in) openRec = cloudOpen;
+    } else if (openRec && isDone(openRec)) {
+      // 雲端已冇開工中記錄，而本機嗰個時段其實已經收咗工（另一部機收嘅）→ 清除
       openRec = null;
     }
     saveLocal(); refresh();
@@ -558,6 +563,10 @@ async function cloudSave() {
       (cd.deletedIds || []).forEach(id => { if (!deletedIds.includes(id)) deletedIds.push(id); });
       records = mergeRecords(records, cd.records);
       bonuses = mergeBonuses(bonuses, cd.bonuses);
+      // 合併完如果發現本機「開工中」其實已經收咗工（喺另一部機收嘅），即刻清
+      if (openRec && records.some(r => r.id === openRec.id || (r.in === openRec.in && r.out != null))) {
+        openRec = null;
+      }
     } else { cloudSha = null; }
     const payload = JSON.stringify({ records, openRec, deletedIds, bonuses });
     const body = { message: 'update clock records ' + todayStr() + ' ' + fmtTime(Date.now()), content: btoa(unescape(encodeURIComponent(payload))) };
@@ -1030,7 +1039,7 @@ function refresh() {
 }
 
 /* ---------- 背景自動同步 ---------- */
-setInterval(() => { if (cfg && !syncing && !openRec) cloudSave(); }, 60000);
+setInterval(() => { if (cfg && !syncing) cloudLoad().then(() => { if (!openRec) cloudSave(); }); }, 60000);
 if (document.visibilityState !== undefined) {
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && cfg) { cloudLoad().then(() => { if (!openRec) cloudSave(); }); }
