@@ -333,9 +333,10 @@ function getDayBonus(date) {
 function dailyIncomeMap() {
   const map = {};
   records.forEach(r => { if (r.money != null) map[r.date] = r.money; });
-  // 收工輸入嘅總收入已包含獎賞 → 有輸入過總收入嘅日子唔再疊加
+  // 當日總收入 = 收工輸入嘅錢 + 獎賞
   bonuses.forEach(b => {
-    if (map[b.date] == null) map[b.date] = b.amount;
+    if (map[b.date] != null) map[b.date] += b.amount;
+    else map[b.date] = b.amount;
   });
   return map;
 }
@@ -777,7 +778,7 @@ function buildDayCard(date, dayRecs, dayIdxs, isSearchResult) {
     '</div>';
   });
 
-  const totalMoney = lastRec.money != null ? lastRec.money : dayBonusAmt;
+  const totalMoney = (lastRec.money || 0) + dayBonusAmt;
 
   return '<div class="day-card ' + (isToday ? 'today' : '') + '">' +
     '<div class="day-header">' +
