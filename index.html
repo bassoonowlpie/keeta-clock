@@ -27,6 +27,8 @@
   .topbar h1 { margin-bottom:0; }
   .theme-btn { width:38px; height:38px; flex-shrink:0; border:none; border-radius:10px; background:var(--surface3); color:var(--text); font-size:17px; cursor:pointer; }
   .theme-btn:active { transform:scale(.92); }
+  .theme-btn.spin { animation:spin .8s linear; }
+  @keyframes spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
   .day-right { display:flex; align-items:center; gap:10px; }
   .day-add { width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; border:none; border-radius:8px; background:#e8f8ef; color:#1e8449; font-size:18px; font-weight:700; line-height:1; cursor:pointer; flex-shrink:0; }
   .day-add:active { transform:scale(.9); }
@@ -159,6 +161,7 @@
 <div class="topbar">
   <h1>🛵 Keeta 步兵打卡器</h1>
   <button id="themeBtn" class="theme-btn" onclick="toggleTheme()" title="切換暗黑模式">🌙</button>
+  <button id="refreshBtn" class="theme-btn" onclick="hardRefresh()" title="重新整理（清除緩存，攞最新版本）">🔄</button>
 </div>
 <div class="sub">開工按綠色按鈕 ・ 收工按紅色按鈕</div>
 
@@ -315,6 +318,24 @@ function toggleTheme() {
   localStorage.setItem('keeta_theme', next);
   applyTheme(next);
   refresh();
+}
+/* 重新整理：清走 PWA 緩存再重新載入，確保攞到最新版本 */
+async function hardRefresh() {
+  const btn = document.getElementById('refreshBtn');
+  if (btn) btn.classList.add('spin');
+  try {
+    if (typeof caches !== 'undefined' && caches.keys) {
+      const names = await caches.keys();
+      await Promise.all(names.map(n => caches.delete(n)));
+    }
+  } catch (e) {}
+  try {
+    if (typeof navigator !== 'undefined' && navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      regs.forEach(r => { if (r.update) r.update(); });
+    }
+  } catch (e) {}
+  setTimeout(() => { location.reload(); }, 350);
 }
 
 /* ---------- Google Calendar ---------- */
