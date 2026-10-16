@@ -6,68 +6,84 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="theme-color" content="#27ae60">
+<meta name="theme-color" content="#0f766e">
 <link rel="manifest" href="manifest.json">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <title>Keeta步兵打卡器</title>
 <style>
   :root {
-    --bg:#f4f5f7; --card:#fff; --text:#222; --muted:#888; --muted2:#bbb;
-    --surface:#f8f9fa; --surface3:#eee; --border:#eee; --border2:#ddd;
-    --input-bg:#fff; --green:#1e8449; --blue:#2980b9; --accent:#2c3e50;
-    --bonus-bg:#fff8e1; --shadow:rgba(0,0,0,.08); color-scheme:light;
+    /* 主色：深青綠 Teal */
+    --primary:#0f766e; --primary-ink:#0f766e; --primary-soft:#e3f0ee;
+    /* 語義色（只保留三個：開工綠 / 收工紅 / 獎賞金） */
+    --go:#15803d; --stop:#d1433f; --amber:#a86a00;
+    --go-soft:#e8f4ec; --stop-soft:#fbeae9; --amber-soft:#fdf3e0;
+    /* 中性面 */
+    --bg:#f1f4f4; --card:#fff; --text:#16211f; --muted:#6b7f7c; --muted2:#a5b2af;
+    --surface:#f2f6f5; --surface3:#e4eae8; --border:#e6ecea; --border2:#d3dbd9;
+    --input-bg:#fff; --bonus-bg:#fdf3e0; --shadow:rgba(15,118,110,.10);
+    --green:#15803d; --blue:#0f766e; --accent:#0f766e;   /* 舊名向後相容 */
+    color-scheme:light;
   }
   body.dark {
-    --bg:#121417; --card:#1c1f24; --text:#e8eaed; --muted:#9aa0a6; --muted2:#7a828c;
-    --surface:#23272e; --surface3:#2c313a; --border:#30353d; --border2:#3a4048;
-    --input-bg:#262b33; --green:#4ade80; --blue:#5dade2; --accent:#3d4f61;
-    --bonus-bg:#3a3320; --shadow:rgba(0,0,0,.45); color-scheme:dark;
+    --primary:#14867c; --primary-ink:#5ecfbf; --primary-soft:#16302e;
+    --go:#3fb950; --stop:#e0706a; --amber:#e0a339;
+    --go-soft:#162a1e; --stop-soft:#2e1d1d; --amber-soft:#2e2618;
+    --bg:#0e1514; --card:#161d1c; --text:#e6efed; --muted:#94a8a4; --muted2:#6b7d79;
+    --surface:#1d2524; --surface3:#26302e; --border:#2a3533; --border2:#364240;
+    --input-bg:#1b2221; --bonus-bg:#2e2618; --shadow:rgba(0,0,0,.45);
+    --green:#3fb950; --blue:#5ecfbf; --accent:#14867c;
+    color-scheme:dark;
   }
+  /* 統一線條圖標 */
+  .icon-sprite { position:absolute; width:0; height:0; overflow:hidden; }
+  .ico { width:1.05em; height:1.05em; vertical-align:-.16em; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; }
+  .ico.solid { fill:currentColor; stroke:none; }
+  .btn .ico, .btn-small .ico, .search-bar button .ico, .tab .ico { margin-right:7px; }
   .topbar { display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:4px; }
   .topbar h1 { margin-bottom:0; }
-  .theme-btn { width:38px; height:38px; flex-shrink:0; border:none; border-radius:10px; background:var(--surface3); color:var(--text); font-size:17px; cursor:pointer; }
+  .theme-btn { width:38px; height:38px; flex-shrink:0; border:none; border-radius:10px; background:var(--surface3); color:var(--text); font-size:17px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; }
   .theme-btn:active { transform:scale(.92); }
   .theme-btn.spin { animation:spin .8s linear; }
   @keyframes spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
   .day-right { display:flex; align-items:center; gap:10px; }
-  .day-add { width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; border:none; border-radius:8px; background:#e8f8ef; color:#1e8449; font-size:18px; font-weight:700; line-height:1; cursor:pointer; flex-shrink:0; }
+  .day-add { width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; border:none; border-radius:8px; background:var(--primary-soft); color:var(--primary-ink); font-size:18px; font-weight:700; line-height:1; cursor:pointer; flex-shrink:0; }
   .day-add:active { transform:scale(.9); }
   * { margin:0; padding:0; box-sizing:border-box; font-family:"PingFang HK","Microsoft JhengHei",sans-serif; }
   body { background:var(--bg); color:var(--text); min-height:100vh; padding:16px; max-width:520px; margin:0 auto; }
   h1 { font-size:20px; text-align:center; margin-bottom:4px; color:var(--text); }
   .sub { text-align:center; color:var(--muted); font-size:13px; margin-bottom:16px; }
   .card { background:var(--card); border-radius:14px; padding:16px; margin-bottom:14px; box-shadow:0 1px 4px var(--shadow); }
-  .status { text-align:center; padding:14px; border-radius:12px; font-size:16px; font-weight:600; margin-bottom:14px; }
-  .status.off { background:#ffecec; color:#c0392b; }
-  .status.on  { background:#e8f8ef; color:#1e8449; }
-  .status small { display:block; font-weight:400; font-size:13px; margin-top:4px; color:#666; }
-  .btn { display:block; width:100%; padding:22px; font-size:22px; font-weight:700; border:none; border-radius:14px; cursor:pointer; margin-bottom:12px; transition:transform .05s; }
+  .status { text-align:center; padding:14px; border-radius:12px; font-size:16px; font-weight:600; margin-bottom:14px; background:var(--surface3); color:var(--muted); }
+  .status.on { background:var(--primary-soft); color:var(--primary-ink); }
+  .status small { display:block; font-weight:400; font-size:13px; margin-top:4px; color:var(--muted); }
+  .btn { display:flex; align-items:center; justify-content:center; gap:7px; width:100%; padding:22px; font-size:22px; font-weight:700; border:none; border-radius:14px; cursor:pointer; margin-bottom:12px; transition:transform .05s; }
   .btn:active { transform:scale(.97); }
-  .btn-in  { background:#27ae60; color:#fff; }
-  .btn-in:disabled { background:#b8c4bc; cursor:not-allowed; }
-  .btn-out { background:#e74c3c; color:#fff; }
-  .btn-out:disabled { background:#d8b0aa; cursor:not-allowed; }
-  .btn-small { padding:10px; font-size:14px; border-radius:10px; background:#2c3e50; color:#fff; margin-bottom:8px; }
-  .btn-gray { background:#7f8c8d; }
-  .btn-blue { background:#2980b9; }
-  .btn-orange { background:#e67e22; }
+  .btn-in  { background:var(--go); color:#fff; }
+  .btn-out { background:var(--stop); color:#fff; }
+  .btn-in:disabled, .btn-out:disabled { background:var(--surface3); color:var(--muted2); cursor:not-allowed; }
+  .btn-small { padding:10px; font-size:14px; border-radius:10px; background:var(--surface3); color:var(--text); margin-bottom:8px; }
+  .btn-blue { background:var(--primary); color:#fff; }
+  .btn-gray { background:var(--surface3); color:var(--muted); }
+  .btn-orange { background:var(--amber); color:#fff; }
   .money-input, .cfg-input, .bonus-input { width:100%; padding:14px; font-size:16px; border:2px solid var(--border2); background:var(--input-bg); color:var(--text); border-radius:12px; margin-bottom:10px; }
-  .money-input { border-color:#e74c3c; font-size:20px; text-align:center; }
-  .bonus-input { border-color:#e67e22; font-size:18px; text-align:center; }
+  .money-input { font-size:20px; text-align:center; }
+  .bonus-input { font-size:18px; text-align:center; }
+  .money-input:focus { border-color:var(--primary); outline:none; }
+  .bonus-input:focus { border-color:var(--amber); outline:none; }
   .stats { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .stat { background:var(--surface); border-radius:10px; padding:12px; text-align:center; }
   .stat .v { font-size:20px; font-weight:700; color:var(--text); }
-  .stat .l { font-size:12px; color:var(--muted); margin-top:2px; }
+  .stat .l { font-size:12px; color:var(--muted); margin-top:2px; display:flex; align-items:center; justify-content:center; gap:5px; }
   .tabs { display:flex; gap:8px; margin-bottom:12px; }
   .tab { flex:1; padding:10px; text-align:center; border-radius:10px; background:var(--surface3); cursor:pointer; font-size:14px; font-weight:600; color:var(--muted); border:none; }
-  .tab.active { background:var(--accent); color:#fff; }
+  .tab.active { background:var(--primary); color:#fff; }
   .empty { text-align:center; color:var(--muted); padding:20px; font-size:14px; }
   .footer { text-align:center; color:var(--muted2); font-size:12px; margin-top:16px; }
-  .cfg-toggle { text-align:center; color:#3498db; font-size:14px; cursor:pointer; padding:6px; }
+  .cfg-toggle { text-align:center; color:var(--primary-ink); font-size:14px; cursor:pointer; padding:6px; }
   .sync-msg { font-size:12px; text-align:center; margin-top:8px; color:var(--muted); min-height:18px; }
-  .sync-msg.ok { color:#27ae60; font-weight:600; }
-  .sync-msg.err { color:#e74c3c; }
-  .sync-msg.syncing { color:#2980b9; }
+  .sync-msg.ok { color:var(--go); font-weight:600; }
+  .sync-msg.err { color:var(--stop); }
+  .sync-msg.syncing { color:var(--primary-ink); }
   .export-row { display:flex; gap:10px; }
   .export-row .btn { margin-bottom:0; }
   .sync-row { display:flex; gap:10px; margin-top:10px; }
@@ -78,134 +94,159 @@
 
   /* ---------- NEW DAY CARD UI ---------- */
   .day-card { background:var(--card); border-radius:14px; margin-bottom:12px; overflow:hidden; box-shadow:0 1px 4px var(--shadow); }
-  .day-card.today { border:2px solid #27ae60; }
+  .day-card.today { border:2px solid var(--primary); }
   .day-header { display:flex; justify-content:space-between; align-items:center; padding:14px 16px; background:var(--surface); border-bottom:1px solid var(--border); }
   .day-date { font-size:16px; font-weight:700; color:var(--text); }
   .day-date .wday { font-size:12px; font-weight:400; color:var(--muted); margin-left:6px; }
-  .day-total { font-size:18px; font-weight:800; color:var(--green); }
+  .day-total { font-size:18px; font-weight:800; color:var(--go); }
   .day-body { padding:12px 16px; }
   .session-row { display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; padding:10px 0; border-bottom:1px dashed var(--border); font-size:15px; }
   .session-row:last-child { border-bottom:none; }
   .session-left { display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; flex:1 1 auto; min-width:0; }
   .session-time { display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; }
   .session-time .dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
-  .session-time .dot.in { background:#27ae60; }
-  .session-time .dot.out { background:#e74c3c; }
+  .session-time .dot.in { background:var(--go); }
+  .session-time .dot.out { background:var(--stop); }
   .session-time .time-str { font-weight:600; color:var(--text); font-size:15px; }
   .session-time .arrow { color:var(--muted2); font-size:13px; }
   .session-time .dur { color:var(--muted); font-size:12px; }
   .session-note { font-size:11px; color:var(--muted); background:var(--surface); padding:3px 8px; border-radius:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100px; flex-shrink:1; }
   .session-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; margin-left:auto; }
-  .session-money { font-weight:700; color:var(--green); font-size:15px; min-width:52px; text-align:right; }
-  .session-cal { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:8px; background:#fff3e0; color:#e67e22; text-decoration:none; font-size:13px; flex-shrink:0; }
-  .session-del { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:8px; background:#ffecec; color:#c0392b; border:none; font-size:13px; cursor:pointer; flex-shrink:0; }
+  .session-money { font-weight:700; color:var(--go); font-size:15px; min-width:52px; text-align:right; }
+  .session-cal { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:8px; background:var(--amber-soft); color:var(--amber); text-decoration:none; font-size:13px; flex-shrink:0; }
+  .session-del { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:8px; background:var(--stop-soft); color:var(--stop); border:none; font-size:13px; cursor:pointer; flex-shrink:0; }
   .session-del:active { transform:scale(.9); }
-  .session-edit { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:8px; background:#e3f2fd; color:#2980b9; border:none; font-size:14px; cursor:pointer; flex-shrink:0; }
+  .session-edit { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:8px; background:var(--primary-soft); color:var(--primary-ink); border:none; font-size:14px; cursor:pointer; flex-shrink:0; }
   .session-edit:active { transform:scale(.9); }
   .edit-modal { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; z-index:100; }
   .edit-box { background:var(--card); border-radius:16px; padding:20px; width:90%; max-width:400px; max-height:90vh; overflow-y:auto; }
-  .edit-box h3 { margin-bottom:12px; font-size:18px; color:var(--text); }
+  .edit-box h3 { margin-bottom:12px; font-size:18px; color:var(--text); display:flex; align-items:center; gap:7px; }
   .edit-box input { width:100%; padding:12px; font-size:15px; border:2px solid var(--border2); background:var(--input-bg); color:var(--text); border-radius:10px; margin-bottom:10px; }
   .edit-box .edit-actions { display:flex; gap:10px; margin-top:10px; }
   .edit-box .edit-actions button { flex:1; padding:12px; border:none; border-radius:10px; font-size:15px; font-weight:600; cursor:pointer; }
-  .edit-box .edit-actions .save { background:#27ae60; color:#fff; }
+  .edit-box .edit-actions .save { background:var(--primary); color:#fff; }
   .edit-box .edit-actions .cancel { background:var(--surface3); color:var(--text); }
-  .session-note { font-size:11px; color:var(--muted); background:var(--surface); padding:3px 8px; border-radius:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100px; flex-shrink:1; }
   .note-input { width:100%; padding:12px; font-size:15px; border:2px solid var(--border2); background:var(--input-bg); color:var(--text); border-radius:12px; margin-bottom:10px; }
-  .note-input:focus { border-color:#27ae60; outline:none; }
-  .last-money-hint { text-align:center; font-size:13px; color:var(--blue); margin-bottom:8px; min-height:18px; font-weight:600; }
+  .note-input:focus { border-color:var(--primary); outline:none; }
+  .last-money-hint { text-align:center; font-size:13px; color:var(--primary-ink); margin-bottom:8px; min-height:18px; font-weight:600; }
   .chart-wrap { position:relative; height:260px; margin-top:16px; }
-  .bonus-row2 { display:flex; align-items:center; gap:8px; padding:10px 0; background:var(--bonus-bg); margin:0 -16px; padding-left:16px; padding-right:16px; border-top:1px dashed #f0e0b0; }
-  .bonus-row2 .gift { font-size:16px; }
-  .bonus-row2 .bonus-label { font-size:13px; color:#e67e22; }
-  .bonus-row2 .bonus-amt { font-weight:700; color:#e67e22; font-size:15px; margin-left:auto; }
-  .bonus-row2 .bonus-del { width:26px; height:26px; flex-shrink:0; border:none; border-radius:8px; background:rgba(255,255,255,.75); color:#c0392b; font-size:13px; cursor:pointer; }
-  .bonus-row2 .bonus-edit { color:var(--blue); }
-  .bonus-card .bc-edit { background:var(--card); border:none; border-radius:8px; padding:6px 12px; font-size:14px; cursor:pointer; color:var(--blue); margin-left:8px; }
+  .bonus-row2 { display:flex; align-items:center; gap:8px; padding:10px 0; background:var(--bonus-bg); margin:0 -16px; padding-left:16px; padding-right:16px; border-top:1px dashed var(--border); }
+  .bonus-row2 .gift { font-size:16px; color:var(--amber); display:inline-flex; }
+  .bonus-row2 .bonus-label { font-size:13px; color:var(--amber); }
+  .bonus-row2 .bonus-amt { font-weight:700; color:var(--amber); font-size:15px; margin-left:auto; }
+  .bonus-row2 .bonus-del { width:26px; height:26px; flex-shrink:0; border:none; border-radius:8px; background:var(--stop-soft); color:var(--stop); font-size:13px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; }
+  .bonus-row2 .bonus-edit { color:var(--primary-ink); }
+  .bonus-card .bc-edit { background:var(--card); border:none; border-radius:8px; padding:6px 12px; font-size:14px; cursor:pointer; color:var(--primary-ink); margin-left:8px; }
   .bonus-row2 .bonus-del:active { transform:scale(.9); }
-  body.dark .bonus-row2 .bonus-del { background:rgba(0,0,0,.25); color:#ff8a80; }
   .day-actions { display:flex; gap:8px; padding:10px 16px 14px; }
-  .day-actions .act-btn { flex:1; padding:10px; border-radius:10px; border:none; font-size:14px; font-weight:600; cursor:pointer; text-align:center; text-decoration:none; display:inline-block; }
-  .day-actions .act-btn.del { background:#ffecec; color:#c0392b; }
-  .day-actions .act-btn.cal { background:#fff3e0; color:#e67e22; }
-  .day-actions .act-btn.del-bonus { background:#fff8e1; color:#e67e22; font-size:13px; }
+  .day-actions .act-btn { flex:1; padding:10px; border-radius:10px; border:none; font-size:14px; font-weight:600; cursor:pointer; text-align:center; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+  .day-actions .act-btn.del { background:var(--stop-soft); color:var(--stop); }
+  .day-actions .act-btn.cal { background:var(--primary-soft); color:var(--primary-ink); }
+  .day-actions .act-btn.del-bonus { background:var(--amber-soft); color:var(--amber); font-size:13px; }
 
   /* week/month table */
   .summary-table { width:100%; border-collapse:collapse; font-size:14px; }
   .summary-table th, .summary-table td { padding:12px 8px; text-align:center; border-bottom:1px solid var(--border); }
   .summary-table th { color:var(--muted); font-weight:600; font-size:13px; background:var(--surface); }
-  .summary-table td.money { color:var(--green); font-weight:700; font-size:15px; }
+  .summary-table td.money { color:var(--go); font-weight:700; font-size:15px; }
 
   /* orphan bonus cards */
   .bonus-card { background:var(--bonus-bg); border-radius:14px; padding:14px 16px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 4px rgba(0,0,0,.06); }
-  .bonus-card .gift { font-size:20px; }
+  .bonus-card .gift { font-size:20px; color:var(--amber); display:inline-flex; }
   .bonus-card .bc-info { flex:1; margin-left:10px; }
   .bonus-card .bc-date { font-size:14px; font-weight:600; color:var(--text); }
-  .bonus-card .bc-label { font-size:12px; color:#e67e22; }
-  .bonus-card .bc-amt { font-size:18px; font-weight:800; color:#e67e22; }
-  .bonus-card .bc-del { background:var(--card); border:none; border-radius:8px; padding:6px 12px; font-size:14px; cursor:pointer; color:#c0392b; margin-left:8px; }
+  .bonus-card .bc-label { font-size:12px; color:var(--amber); }
+  .bonus-card .bc-amt { font-size:18px; font-weight:800; color:var(--amber); }
+  .bonus-card .bc-del { background:var(--card); border:none; border-radius:8px; padding:6px 12px; font-size:14px; cursor:pointer; color:var(--stop); margin-left:8px; }
 
   /* search & show more */
   .search-bar { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; align-items:flex-end; }
   .search-field { flex:1 1 160px; min-width:0; display:flex; flex-direction:column; gap:3px; font-size:12px; font-weight:600; color:var(--muted); }
   .search-bar input { width:100%; min-width:0; height:46px; padding:0 14px; font-size:15px; border:2px solid var(--border2); background:var(--input-bg); color:var(--text); border-radius:10px; -webkit-appearance:none; appearance:none; }
-  .search-bar input:focus { border-color:#2980b9; outline:none; }
-  .search-bar button { height:46px; padding:0 18px; border:none; border-radius:10px; background:#2980b9; color:#fff; font-size:15px; font-weight:600; cursor:pointer; flex-shrink:0; }
-  .search-bar button.clear { background:#7f8c8d; }
-  .show-more-btn { display:block; width:100%; padding:14px; text-align:center; background:var(--surface3); border:none; border-radius:12px; font-size:15px; font-weight:600; color:var(--text); cursor:pointer; margin-top:8px; }
-  .show-more-btn:active { background:#e4e6e9; }
+  .search-bar input:focus { border-color:var(--primary); outline:none; }
+  .search-bar button { height:46px; padding:0 18px; border:none; border-radius:10px; background:var(--primary); color:#fff; font-size:15px; font-weight:600; cursor:pointer; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; }
+  .search-bar button.clear { background:var(--surface3); color:var(--text); }
+  .show-more-btn { display:flex; align-items:center; justify-content:center; gap:7px; width:100%; padding:14px; text-align:center; background:var(--surface3); border:none; border-radius:12px; font-size:15px; font-weight:600; color:var(--text); cursor:pointer; margin-top:8px; }
+  .show-more-btn:active { background:var(--border); }
 </style>
 </head>
 <body>
+<svg class="icon-sprite" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-scooter" viewBox="0 0 24 24"><circle cx="5.5" cy="17" r="2.6"/><circle cx="18.5" cy="17" r="2.6"/><path d="M8.1 17h4.9"/><path d="M13 17l2.5-9H18.6"/><path d="M18.6 8h1.4"/><path d="M9.6 12.4h3.6"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.5 14.8A8.5 8.5 0 0 1 9.2 3.5 7.2 7.2 0 1 0 20.5 14.8z"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4l1.4-1.4M18 6l1.4-1.4"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20.5 12a8.5 8.5 0 1 1-2.6-6.1"/><path d="M20.5 4v4.5H16"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7.5 4.8l11 7.2-11 7.2z"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/></symbol>
+  <symbol id="i-gift" viewBox="0 0 24 24"><rect x="3.5" y="9" width="17" height="11" rx="2"/><path d="M3.5 13.5h17M12 9v11"/><path d="M12 9S10.6 4.5 8.2 4.5a2.4 2.4 0 0 0 0 4.8M12 9s1.4-4.5 3.8-4.5a2.4 2.4 0 0 1 0 4.8"/></symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9.5 18.5h5M10.5 21h3"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.5.4.8 1 .8 1.6v.6h5.6v-.6c0-.6.3-1.2.8-1.6A6 6 0 0 0 12 3z"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M17.5 18.5H7.2A4.3 4.3 0 0 1 6.6 10a5.6 5.6 0 0 1 10.8-1.4 4.3 4.3 0 0 1 .1 9.9z"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3.5v11"/><path d="M7.5 10.5l4.5 4.5 4.5-4.5"/><path d="M4.5 20h15"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M8 3v4M16 3v4M3.5 10h17"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M3 10.5h18"/><path d="M16.5 15h1.5"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3.5 20h17"/><path d="M7.5 20v-6M12 20V6M16.5 20v-9.5"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5.2l3.2 2"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 3.5H7.5A2 2 0 0 0 5.5 5.5v13a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V8z"/><path d="M14 3.5V8h4.5"/><path d="M9 13h6M9 16.5h4"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M12 7.5v5M9.5 10h5"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.6M12 18.6v2.6M2.8 12h2.6M18.6 12h2.6M5.5 5.5l1.9 1.9M16.6 16.6l1.9 1.9M18.5 5.5l-1.9 1.9M7.4 16.6l-1.9 1.9"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4.5 19.5h4L19 9a2.6 2.6 0 0 0-3.7-3.7L4.5 15.8z"/><path d="M14.5 6.5l3.5 3.5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.8"/><path d="M20 20l-4.4-4.4"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5.5v13M5.5 12h13"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M6.5 9.5l5.5 5.5 5.5-5.5"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 7h15"/><path d="M9.5 4h5"/><path d="M6.5 7l1 12.5a2 2 0 0 0 2 1.9h5a2 2 0 0 0 2-1.9L17.5 7"/><path d="M10.5 11v6M13.5 11v6"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4.5 12h14M13.5 7l5 5-5 5"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M4.5 12.5l4.8 4.8L19.5 7"/></symbol>
+</svg>
 
 <div class="topbar">
-  <h1>🛵 Keeta 步兵打卡器</h1>
-  <button id="themeBtn" class="theme-btn" onclick="toggleTheme()" title="切換暗黑模式">🌙</button>
-  <button id="refreshBtn" class="theme-btn" onclick="hardRefresh()" title="重新整理（清除緩存，攞最新版本）">🔄</button>
+  <h1><svg class="ico" style="width:23px;height:23px;margin-right:7px;vertical-align:-4px"><use href="#i-scooter"/></svg>Keeta 步兵打卡器</h1>
+  <button id="themeBtn" class="theme-btn" onclick="toggleTheme()" title="切換暗黑模式"><svg class="ico"><use href="#i-moon"/></svg></button>
+  <button id="refreshBtn" class="theme-btn" onclick="hardRefresh()" title="重新整理（清除緩存，攞最新版本）"><svg class="ico"><use href="#i-refresh"/></svg></button>
 </div>
 <div class="sub">開工按綠色按鈕 ・ 收工按紅色按鈕</div>
 
 <div class="card">
   <div id="statusBox" class="status off">未開工<small></small></div>
-  <button id="btnIn" class="btn btn-in" onclick="clockIn()">📍 開工打卡</button>
+  <button id="btnIn" class="btn btn-in" onclick="clockIn()"><svg class="ico"><use href="#i-play"/></svg>開工打卡</button>
   <div id="lastMoneyHint" class="last-money-hint"></div>
   <input id="moneyInput" class="money-input" type="number" inputmode="decimal" min="0" step="0.1" placeholder="收工請輸入今日累計賺了多少錢（HK$）">
   <input id="noteInput" class="note-input" type="text" placeholder="備註（例如：天氣、單量、地區…）">
-  <button id="btnOut" class="btn btn-out" onclick="clockOut()" disabled>🏁 收工打卡</button>
+  <button id="btnOut" class="btn btn-out" onclick="clockOut()" disabled><svg class="ico"><use href="#i-stop"/></svg>收工打卡</button>
   <div id="syncMsg" class="sync-msg"></div>
   <div class="sync-row">
-    <button class="btn btn-small btn-blue" onclick="forceSync()">☁️ 立即同步</button>
-    <button class="btn btn-small btn-gray" onclick="syncFromCloud()">📥 從雲端下載</button>
+    <button class="btn btn-small btn-blue" onclick="forceSync()"><svg class="ico"><use href="#i-cloud"/></svg>立即同步</button>
+    <button class="btn btn-small btn-gray" onclick="syncFromCloud()"><svg class="ico"><use href="#i-download"/></svg>從雲端下載</button>
   </div>
   <div id="lastSync" class="last-sync"></div>
-  <div class="tip">💡 一天可多次打卡，收工輸入當天累計總收入</div>
+  <div class="tip"><svg class="ico"><use href="#i-bulb"/></svg>一天可多次打卡，收工輸入當天累計總收入</div>
 </div>
 
 <div class="card">
   <input id="bonusInput" class="bonus-input" type="number" inputmode="decimal" min="0" step="0.1" placeholder="輸入今日獎賞金額（HK$）">
-  <button class="btn btn-small btn-orange" onclick="addBonus()">🎁 加入今日獎賞</button>
+  <button class="btn btn-small btn-orange" onclick="addBonus()"><svg class="ico"><use href="#i-gift"/></svg>加入今日獎賞</button>
   <div id="bonusMsg" class="sync-msg"></div>
 </div>
 
 <div class="card">
   <div class="stats">
-    <div class="stat"><div class="v" id="stTotal">$0</div><div class="l">💰 累計收入</div></div>
-    <div class="stat"><div class="v" id="stDays">0日</div><div class="l">📅 開工日數</div></div>
-    <div class="stat"><div class="v" id="stAvg">$0</div><div class="l">📊 平均每日</div></div>
-    <div class="stat"><div class="v" id="stHours">0小時</div><div class="l">⏱ 累計時數</div></div>
-    <div class="stat"><div class="v" id="stWeek">$0</div><div class="l">🗓 本星期</div></div>
-    <div class="stat"><div class="v" id="stMonth">$0</div><div class="l">🗓 本月份</div></div>
-    <div class="stat"><div class="v" id="stBonus">$0</div><div class="l">🎁 累計獎賞</div></div>
-    <div class="stat"><div class="v" id="stWeekBonus">$0</div><div class="l">🎁 本星期獎賞</div></div>
+    <div class="stat"><div class="v" id="stTotal">$0</div><div class="l"><svg class="ico"><use href="#i-wallet"/></svg>累計收入</div></div>
+    <div class="stat"><div class="v" id="stDays">0日</div><div class="l"><svg class="ico"><use href="#i-calendar"/></svg>開工日數</div></div>
+    <div class="stat"><div class="v" id="stAvg">$0</div><div class="l"><svg class="ico"><use href="#i-chart"/></svg>平均每日</div></div>
+    <div class="stat"><div class="v" id="stHours">0小時</div><div class="l"><svg class="ico"><use href="#i-clock"/></svg>累計時數</div></div>
+    <div class="stat"><div class="v" id="stWeek">$0</div><div class="l"><svg class="ico"><use href="#i-calendar"/></svg>本星期</div></div>
+    <div class="stat"><div class="v" id="stMonth">$0</div><div class="l"><svg class="ico"><use href="#i-calendar"/></svg>本月份</div></div>
+    <div class="stat"><div class="v" id="stBonus">$0</div><div class="l"><svg class="ico"><use href="#i-gift"/></svg>累計獎賞</div></div>
+    <div class="stat"><div class="v" id="stWeekBonus">$0</div><div class="l"><svg class="ico"><use href="#i-gift"/></svg>本星期獎賞</div></div>
   </div>
 </div>
 
 <div class="card">
   <div class="export-row">
-    <button class="btn btn-small" onclick="exportCSV()">📄 導出 CSV</button>
-    <button class="btn btn-small btn-gray" onclick="exportJSON()">📄 導出 JSON</button>
+    <button class="btn btn-small" onclick="exportCSV()"><svg class="ico"><use href="#i-doc"/></svg>導出 CSV</button>
+    <button class="btn btn-small btn-gray" onclick="exportJSON()"><svg class="ico"><use href="#i-doc"/></svg>導出 JSON</button>
   </div>
-  <button id="installBtn" class="btn btn-small btn-blue" style="display:none;margin-top:10px;" onclick="installPWA()">📲 加到主畫面</button>
+  <button id="installBtn" class="btn btn-small btn-blue" style="display:none;margin-top:10px;" onclick="installPWA()"><svg class="ico"><use href="#i-phone"/></svg>加到主畫面</button>
 </div>
 
 <div class="card">
@@ -218,7 +259,7 @@
     <label class="search-field">搜尋日子
       <input id="searchDate" type="date" title="睇指定日子嘅記錄" onchange="doSearch()">
     </label>
-    <button onclick="doSearch()">🔍 搜尋</button>
+    <button onclick="doSearch()"><svg class="ico"><use href="#i-search"/></svg>搜尋</button>
     <button class="clear" onclick="clearSearch()">清除</button>
   </div>
   <div id="recordBox"></div>
@@ -226,19 +267,19 @@
 
 <div class="card">
   <details>
-    <summary class="cfg-toggle">⚙️ GitHub 雲端同步設定（手機電腦共用資料）</summary>
+    <summary class="cfg-toggle"><svg class="ico"><use href="#i-gear"/></svg>GitHub 雲端同步設定（手機電腦共用資料）</summary>
     <div style="margin-top:12px">
       <input id="cfgUser" class="cfg-input" placeholder="GitHub 用戶名">
       <input id="cfgRepo" class="cfg-input" placeholder="Repository 名稱（例如 keeta-clock）">
       <input id="cfgToken" class="cfg-input" type="password" placeholder="Personal Access Token">
-      <button class="btn btn-small" onclick="saveConfig()">💾 儲存設定並同步</button>
+      <button class="btn btn-small" onclick="saveConfig()"><svg class="ico"><use href="#i-check"/></svg>儲存設定並同步</button>
       <button class="btn btn-small btn-gray" onclick="clearConfig()">清除雲端設定</button>
       <div class="sync-msg">Token 只儲存在你的機器，不會上傳。教學見安裝步驟。</div>
     </div>
   </details>
 </div>
 
-<div class="footer">資料本地備份 + GitHub 雲端同步 ☁️</div>
+<div class="footer">資料本地備份 + GitHub 雲端同步 <svg class="ico"><use href="#i-cloud"/></svg></div>
 
 <script>
 const KEY = 'keeta_walker_records';
@@ -304,9 +345,9 @@ function applyTheme(t) {
   if (dark) document.body.classList.add('dark');
   else document.body.classList.remove('dark');
   const btn = document.getElementById('themeBtn');
-  if (btn) btn.textContent = dark ? '☀️' : '🌙';
+  if (btn) btn.innerHTML = dark ? '<svg class="ico"><use href="#i-sun"/></svg>' : '<svg class="ico"><use href="#i-moon"/></svg>';
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute('content', dark ? '#121417' : '#27ae60');
+  if (meta) meta.setAttribute('content', dark ? '#0e1514' : '#0f766e');
   if (window.Chart) {
     const cs = getComputedStyle(document.body);
     Chart.defaults.color = cs.getPropertyValue('--muted').trim();
@@ -404,13 +445,13 @@ function editBonus(id) {
   const modal = document.createElement('div');
   modal.className = 'edit-modal';
   modal.innerHTML = '<div class="edit-box">' +
-    '<h3>✎ 編輯獎賞</h3>' +
+    '<h3><svg class="ico"><use href="#i-pencil"/></svg>編輯獎賞</h3>' +
     '<label style="' + lbl + '">獎賞日期</label>' +
     '<input id="bonusDate" type="date" value="' + b.date + '">' +
     '<label style="' + lbl + '">金額（HK$）</label>' +
     '<input id="bonusAmt" type="number" inputmode="decimal" min="0" step="0.1" value="' + b.amount + '">' +
     '<div class="edit-actions">' +
-      '<button class="save" onclick="saveBonusEdit()">💾 儲存</button>' +
+      '<button class="save" onclick="saveBonusEdit()"><svg class="ico"><use href="#i-check"/></svg>儲存</button>' +
       '<button class="cancel" onclick="closeEdit()">取消</button>' +
     '</div>' +
   '</div>';
@@ -611,7 +652,7 @@ function openSessionModal(i, defDate) {
   const modal = document.createElement('div');
   modal.className = 'edit-modal';
   modal.innerHTML = '<div class="edit-box">' +
-    '<h3>' + (isNew ? '➕ 新增工作時段' : '✎ 編輯打卡記錄') + '</h3>' +
+    '<h3>' + (isNew ? '<svg class="ico"><use href="#i-plus"/></svg>新增工作時段' : '<svg class="ico"><use href="#i-pencil"/></svg>編輯打卡記錄') + '</h3>' +
     '<label style="' + lbl + '">工作日期</label>' +
     '<input id="editDate" type="date" value="' + (r.date || todayStr()) + '">' +
     '<label style="' + lbl + '">開工時間</label>' +
@@ -623,7 +664,7 @@ function openSessionModal(i, defDate) {
     '<label style="' + lbl + '">備註</label>' +
     '<input id="editNote" type="text" value="' + (r.note || '') + '">' +
     '<div class="edit-actions">' +
-      '<button class="save" onclick="saveSession()">💾 儲存</button>' +
+      '<button class="save" onclick="saveSession()"><svg class="ico"><use href="#i-check"/></svg>儲存</button>' +
       '<button class="cancel" onclick="closeEdit()">取消</button>' +
     '</div>' +
   '</div>';
@@ -745,14 +786,14 @@ function showMore() {
 }
 function buildBonusCard(b) {
   return '<div class="bonus-card">' +
-    '<span class="gift">🎁</span>' +
+    '<span class="gift"><svg class="ico"><use href="#i-gift"/></svg></span>' +
     '<div class="bc-info">' +
       '<div class="bc-date">' + b.date + ' 星期' + wday(b.date) + '</div>' +
       '<div class="bc-label">獎賞</div>' +
     '</div>' +
     '<div class="bc-amt">$' + b.amount.toFixed(1) + '</div>' +
-    '<button class="bc-edit" onclick="editBonus(\'' + b.id + '\')" title="編輯獎賞日子／金額">✎</button>' +
-    '<button class="bc-del" onclick="delBonus(\'' + b.id + '\')" title="刪除">✕</button>' +
+    '<button class="bc-edit" onclick="editBonus(\'' + b.id + '\')" title="編輯獎賞日子／金額"><svg class="ico"><use href="#i-pencil"/></svg></button>' +
+    '<button class="bc-del" onclick="delBonus(\'' + b.id + '\')" title="刪除"><svg class="ico"><use href="#i-x"/></svg></button>' +
   '</div>';
 }
 function buildDayCard(date, dayRecs, dayIdxs, isSearchResult) {
@@ -765,16 +806,16 @@ function buildDayCard(date, dayRecs, dayIdxs, isSearchResult) {
   dayRecs.forEach((r, i) => {
     const idx = dayIdxs[i];
     const dur = r.out ? fmtDur(r.out - r.in) : '-';
-    const calLink = r.out ? '<a class="session-cal" href="' + makeCalLink(r.in, r.out, r.money) + '" target="_blank" title="加入行事曆">📅</a>' : '';
-    const delBtn = '<button class="session-del" onclick="delRec(' + idx + ')" title="刪除">✕</button>';
-    const editBtn = '<button class="session-edit" onclick="editRec(' + idx + ')" title="編輯">✎</button>';
+    const calLink = r.out ? '<a class="session-cal" href="' + makeCalLink(r.in, r.out, r.money) + '" target="_blank" title="加入行事曆"><svg class="ico"><use href="#i-calendar"/></svg></a>' : '';
+    const delBtn = '<button class="session-del" onclick="delRec(' + idx + ')" title="刪除"><svg class="ico"><use href="#i-x"/></svg></button>';
+    const editBtn = '<button class="session-edit" onclick="editRec(' + idx + ')" title="編輯"><svg class="ico"><use href="#i-pencil"/></svg></button>';
     const noteBadge = r.note ? '<span class="session-note">' + r.note + '</span>' : '';
     sessionsHtml += '<div class="session-row">' +
       '<div class="session-left">' +
         '<div class="session-time">' +
           '<span class="dot in"></span>' +
           '<span class="time-str">' + fmtTime(r.in) + '</span>' +
-          '<span class="arrow">→</span>' +
+          '<span class="arrow"><svg class="ico"><use href="#i-arrow"/></svg></span>' +
           '<span class="time-str">' + (r.out ? fmtTime(r.out) : '--:--') + '</span>' +
           '<span class="dur">(' + dur + ')</span>' +
         '</div>' +
@@ -793,11 +834,11 @@ function buildDayCard(date, dayRecs, dayIdxs, isSearchResult) {
   const dayBonuses = bonuses.filter(b => b.date === date);
   dayBonuses.forEach(b => {
     bonusHtml += '<div class="bonus-row2">' +
-      '<span class="gift">🎁</span>' +
+      '<span class="gift"><svg class="ico"><use href="#i-gift"/></svg></span>' +
       '<span class="bonus-label">獎賞</span>' +
       '<span class="bonus-amt">$' + b.amount.toFixed(1) + '</span>' +
-      '<button class="bonus-del bonus-edit" onclick="editBonus(\'' + b.id + '\')" title="編輯呢筆獎賞">✎</button>' +
-      '<button class="bonus-del" onclick="delBonus(\'' + b.id + '\')" title="刪除呢筆獎賞">✕</button>' +
+      '<button class="bonus-del bonus-edit" onclick="editBonus(\'' + b.id + '\')" title="編輯呢筆獎賞"><svg class="ico"><use href="#i-pencil"/></svg></button>' +
+      '<button class="bonus-del" onclick="delBonus(\'' + b.id + '\')" title="刪除呢筆獎賞"><svg class="ico"><use href="#i-x"/></svg></button>' +
     '</div>';
   });
 
@@ -808,13 +849,13 @@ function buildDayCard(date, dayRecs, dayIdxs, isSearchResult) {
       '<div class="day-date">' + date + '<span class="wday">星期' + wday(date) + '</span></div>' +
       '<div class="day-right">' +
         '<div class="day-total">$' + totalMoney.toFixed(1) + '</div>' +
-        '<button class="day-add" onclick="addRec(\'' + date + '\')" title="手動新增呢日嘅工作時段">＋</button>' +
+        '<button class="day-add" onclick="addRec(\'' + date + '\')" title="手動新增呢日嘅工作時段"><svg class="ico"><use href="#i-plus"/></svg></button>' +
       '</div>' +
     '</div>' +
     '<div class="day-body">' + sessionsHtml + '</div>' +
     (bonusHtml || '') +
     '<div class="day-actions">' +
-      '<button class="act-btn del" onclick="if(confirm(\'確定刪除這天的所有記錄？\')){[' + dayIdxs.join(',') + '].reverse().forEach(i=>delRec(i))}">🗑 刪除當日全部</button>' +
+      '<button class="act-btn del" onclick="if(confirm(\'確定刪除這天的所有記錄？\')){[' + dayIdxs.join(',') + '].reverse().forEach(i=>delRec(i))}"><svg class="ico"><use href="#i-trash"/></svg>刪除當日全部</button>' +
     '</div>' +
   '</div>';
 }
@@ -842,7 +883,7 @@ function renderRecords() {
       if (dayMap[searchDateVal]) {
         displayDates = [searchDateVal];
       } else if (!hasBonus) {
-        box.innerHTML = '<div class="empty">🔍 搵唔到 ' + searchDateVal + ' 嘅記錄</div>';
+        box.innerHTML = '<div class="empty"><svg class="ico"><use href="#i-search"/></svg>搵唔到 ' + searchDateVal + ' 嘅記錄</div>';
         return;
       }
     } else {
@@ -870,7 +911,7 @@ function renderRecords() {
     // Show more button
     if (!searchDateVal && allDates.length > daysToShow) {
       const remaining = allDates.length - daysToShow;
-      html += '<button class="show-more-btn" onclick="showMore()">🔽 顯示更多 (' + remaining + ' 天)</button>';
+      html += '<button class="show-more-btn" onclick="showMore()"><svg class="ico"><use href="#i-chevron"/></svg>顯示更多 (' + remaining + ' 天)</button>';
     }
 
     box.innerHTML = html;
@@ -935,7 +976,7 @@ function renderMonthChart(groups) {
         label: '收入 HK$',
         data: data,
         backgroundColor: 'rgba(39, 174, 96, 0.6)',
-        borderColor: '#27ae60',
+        borderColor: '#0f766e',
         borderWidth: 1,
         borderRadius: 6
       }]
@@ -957,11 +998,11 @@ function refresh() {
   if (openRec) {
     updateLastMoneyHint();
     st.className = 'status on';
-    st.innerHTML = '✅ 開工中<small>' + openRec.date + ' ' + fmtTime(openRec.in) + ' 開工</small>';
+    st.innerHTML = '<svg class="ico"><use href="#i-check"/></svg>開工中<small>' + openRec.date + ' ' + fmtTime(openRec.in) + ' 開工</small>';
     btnIn.disabled = true; btnOut.disabled = false;
   } else {
     st.className = 'status off';
-    st.innerHTML = '🔴 未開工<small></small>';
+    st.innerHTML = '<svg class="ico"><use href="#i-stop"/></svg>未開工<small></small>';
     btnIn.disabled = false; btnOut.disabled = true;
     document.getElementById('lastMoneyHint').textContent = '';
   }
