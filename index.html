@@ -144,8 +144,9 @@
   .bonus-card .bc-del { background:var(--card); border:none; border-radius:8px; padding:6px 12px; font-size:14px; cursor:pointer; color:#c0392b; margin-left:8px; }
 
   /* search & show more */
-  .search-bar { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
-  .search-bar input { flex:1 1 45%; min-width:130px; padding:10px 14px; font-size:15px; border:2px solid var(--border2); background:var(--input-bg); color:var(--text); border-radius:10px; }
+  .search-bar { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; align-items:flex-end; }
+  .search-field { flex:1 1 45%; min-width:130px; display:flex; flex-direction:column; gap:3px; font-size:12px; font-weight:600; color:var(--muted); }
+  .search-bar input { width:100%; padding:10px 14px; font-size:15px; border:2px solid var(--border2); background:var(--input-bg); color:var(--text); border-radius:10px; }
   .search-bar input:focus { border-color:#2980b9; outline:none; }
   .search-bar button { padding:10px 16px; border:none; border-radius:10px; background:#2980b9; color:#fff; font-size:14px; font-weight:600; cursor:pointer; }
   .search-bar button.clear { background:#7f8c8d; }
@@ -211,8 +212,12 @@
     <button class="tab" onclick="switchTab('month',this)">月份</button>
   </div>
   <div id="searchBar" class="search-bar">
-    <input id="searchDate" type="date" title="睇指定日子" onchange="doSearch()">
-    <input id="searchMonth" type="month" placeholder="YYYY-MM（睇成個月）" title="睇成個月份" onchange="doSearch()">
+    <label class="search-field">搜尋日子
+      <input id="searchDate" type="date" title="睇指定日子嘅記錄" onchange="doSearch()">
+    </label>
+    <label class="search-field">搜尋月份
+      <input id="searchMonth" type="month" placeholder="YYYY-MM" title="睇成個月份嘅記錄" onchange="doSearch()">
+    </label>
     <button onclick="doSearch()">🔍 搜尋</button>
     <button class="clear" onclick="clearSearch()">清除</button>
   </div>
